@@ -5,17 +5,18 @@ import config
 
 class Driver():
     def __init__(self):
-        self.driver = webdriver.Chrome('/Users/jordangeorge/Library/Mobile Documents/com~apple~CloudDocs/F4F_Checker/chromedriver')
+        self.driver = webdriver.Chrome('./chromedriver')
+
+    def close(self):
+        self.driver.close()
 
 
 class InstagramChecker():
     def __init__(self, driver):
         self.driver = driver
         self.url = 'https://www.instagram.com/'
-        self.followers_usernames = list()
-        self.following_usernames = list()
 
-    def login(self, profile):
+    def login(self, target_profile_username):
         self.driver.get(self.url)
 
         time.sleep(2)
@@ -27,7 +28,7 @@ class InstagramChecker():
         self.driver.find_element_by_id("loginbutton").click()
 
         time.sleep(2)
-        self.driver.get(profile)
+        self.driver.get('https://www.instagram.com/' + target_profile_username)
 
         # go to profile
         time.sleep(2)
@@ -36,94 +37,96 @@ class InstagramChecker():
         print('Getting people following')
 
         # get number of following
-        numberOfFollowingList = int(self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span').text)
+        number_of_following = int(self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/span').text)
 
+        # click on following dialog
         # time.sleep(1)
-        d = self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a')
-        d.click()
+        self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a').click()
 
+        # scrolling
         time.sleep(1)
-        element = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/ul/div")
-        num = 0
-        while num != numberOfFollowingList:
-            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", element)
-            num = len(element.find_elements_by_tag_name("li"))
+        dialog_ul_div = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/ul/div")
+        li_num = 0
+        while li_num != number_of_following:
+            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", dialog_ul_div)
+            li_num = len(dialog_ul_div.find_elements_by_tag_name("li"))
 
         time.sleep(2)
         page = self.driver.page_source
         soup = bs4.BeautifulSoup(page, "lxml")
-        ul = soup.find_all("ul")[3]
+        ul_div = soup.find_all("ul")[3]
 
-        for list in ul:
-            lis = list.find_all("li")
+        following_usernames = list()
+        for ul in ul_div:
+            lis = ul.find_all("li")
             for li in lis:
                 username = li.find_all("div")[0].find_all("div")[2].find_all("div")[0].find("a").contents[0]
-                self.following_usernames.append(username)
+                following_usernames.append(username)
+
+        return following_usernames
 
     def getFollowers(self):
         print('Getting followers')
 
         # get number of followers
-        num_following = int(self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/span').text)
+        num_of_followers = int(self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/span').text)
 
         # click on followers dialog
         time.sleep(1)
-        d = self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a')
-        d.click()
+        self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a').click()
 
         # scrolling
         time.sleep(1)
-        element = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/ul/div")
-        num = 0
-        while num != num_following:
-            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", element)
-            num = len(element.find_elements_by_tag_name("li"))
+        dialog_ul_div = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/ul/div")
+        li_num = 0
+        while li_num != num_of_followers:
+            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", dialog_ul_div)
+            li_num = len(dialog_ul_div.find_elements_by_tag_name("li"))
 
         time.sleep(2)
         page = self.driver.page_source
         soup = bs4.BeautifulSoup(page, "lxml")
-        ul = soup.find_all("ul")[3]
+        ul_div = soup.find_all("ul")[3]
 
-        for list in ul:
-            lis = list.find_all("li")
+        followers_usernames = list()
+        for ul in ul_div:
+            lis = ul.find_all("li")
             for li in lis:
                 username = li.find_all("div")[0].find_all("div")[2].find_all("div")[0].find("a").contents[0]
-                self.followers_usernames.append(username)
+                followers_usernames.append(username)
 
-    def makeComparisons(self):
-        for u in range(len(self.following_usernames)):
-            for j in range(len(self.followers_usernames)):
-                if self.following_usernames[u] == self.followers_usernames[j]:
+        return followers_usernames
+
+    def getComparisons(self):
+        following_usernames = self.getFollowing()
+        self.closeDialog('/html/body/div[3]/div/div[1]/div/div[2]/button')
+        followers_usernames = self.getFollowers()
+
+        l = list()
+
+        for i in range(len(following_usernames)):
+            for j in range(len(followers_usernames)):
+                if following_usernames[i] == followers_usernames[j]:
                     break
-                elif self.following_usernames[u] != self.followers_usernames[j] and j == len(self.followers_usernames)-1:
-                    print(self.following_usernames[u])
+                elif following_usernames[i] != followers_usernames[j] and j == len(followers_usernames)-1:
+                    l.append(following_usernames[i])
+
+        return l
 
     def closeDialog(self, xpath):
         self.driver.find_element_by_xpath(xpath).click()
 
 
-class TwitterChecker():
-
-    def __init__(self):
-        pass
-
-    def getFollowing(self):
-        pass
-
-    def getFollowers(self):
-        pass
-
-
 if __name__ == "__main__":
-    driver = Driver().driver
+    driver = Driver()
 
     print()
-    ic = InstagramChecker(driver)
-    ic.login("https://www.instagram.com/jordanngeorge")
-    ic.getFollowing()
-    ic.closeDialog('/html/body/div[3]/div/div[1]/div/div[2]/button')
-    ic.getFollowers()
+    ic = InstagramChecker(driver.driver)
+    ic.login("jordanngeorge")
+
+    l = ic.getComparisons()
     print()
-    ic.makeComparisons()
+    for i in l:
+        print(i)
 
     driver.close()

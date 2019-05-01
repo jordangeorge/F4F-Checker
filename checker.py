@@ -3,34 +3,28 @@ import bs4
 import time
 import config
 
-class Driver():
+class InstagramChecker():
     def __init__(self):
         self.driver = webdriver.Chrome('./chromedriver')
-
-    def close(self):
-        self.driver.close()
-
-
-class InstagramChecker():
-    def __init__(self, driver):
-        self.driver = driver
         self.url = 'https://www.instagram.com/'
 
     def login(self, target_profile_username):
+        # go to instagram
         self.driver.get(self.url)
 
+        # click 'login with facebook' button
         time.sleep(2)
-        self.driver.find_elements_by_tag_name("button")[0].click()
+        self.driver.find_elements_by_tag_name('button')[0].click()
 
+        # login with facebook
         time.sleep(2)
         self.driver.find_element_by_name('email').send_keys(config.FACEBOOK_EMAIL)
         self.driver.find_element_by_name('pass').send_keys(config.FACEBOOK_PASSWORD)
-        self.driver.find_element_by_id("loginbutton").click()
-
-        time.sleep(2)
-        self.driver.get('https://www.instagram.com/' + target_profile_username)
+        self.driver.find_element_by_id('loginbutton').click()
 
         # go to profile
+        time.sleep(2)
+        self.driver.get(self.url + target_profile_username)
         time.sleep(2)
 
     def getFollowing(self):
@@ -45,23 +39,31 @@ class InstagramChecker():
 
         # scrolling
         time.sleep(1)
-        dialog_ul_div = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/ul/div")
+        dialog_ul_div = self.driver.find_element_by_xpath('/html/body/div[3]/div/div[2]/ul/div')
         li_num = 0
         while li_num != number_of_following:
-            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", dialog_ul_div)
-            li_num = len(dialog_ul_div.find_elements_by_tag_name("li"))
+            self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
+            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
 
         time.sleep(2)
         page = self.driver.page_source
-        soup = bs4.BeautifulSoup(page, "lxml")
-        ul_div = soup.find_all("ul")[3]
+        soup = bs4.BeautifulSoup(page, 'lxml')
+        ul_div = soup.find_all('ul')[2]
 
         following_usernames = list()
         for ul in ul_div:
-            lis = ul.find_all("li")
+            lis = ul.find_all('li')
             for li in lis:
-                username = li.find_all("div")[0].find_all("div")[2].find_all("div")[0].find("a").contents[0]
-                following_usernames.append(username)
+                try: status = li.find_all('div')[0].find_all('div')[2].find_all('div')[0].find('span').contents[0]
+                except: status = 'not'
+
+                # if user is verified, don't add to username list
+                if status == 'Verified':
+                    continue
+                # if user is not verified, add to username list
+                else:
+                    username = li.find_all('div')[0].find_all('div')[2].find_all('div')[0].find('a').contents[0]
+                    following_usernames.append(username)
 
         return following_usernames
 
@@ -77,29 +79,29 @@ class InstagramChecker():
 
         # scrolling
         time.sleep(1)
-        dialog_ul_div = self.driver.find_element_by_xpath("/html/body/div[3]/div/div[2]/ul/div")
+        dialog_ul_div = self.driver.find_element_by_xpath('/html/body/div[3]/div/div[2]/ul/div')
         li_num = 0
         while li_num != num_of_followers:
-            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", dialog_ul_div)
-            li_num = len(dialog_ul_div.find_elements_by_tag_name("li"))
+            self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
+            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
 
         time.sleep(2)
         page = self.driver.page_source
-        soup = bs4.BeautifulSoup(page, "lxml")
-        ul_div = soup.find_all("ul")[3]
+        soup = bs4.BeautifulSoup(page, 'lxml')
+        ul_div = soup.find_all('ul')[2]
 
         followers_usernames = list()
         for ul in ul_div:
-            lis = ul.find_all("li")
+            lis = ul.find_all('li')
             for li in lis:
-                username = li.find_all("div")[0].find_all("div")[2].find_all("div")[0].find("a").contents[0]
+                username = li.find_all('div')[0].find_all('div')[2].find_all('div')[0].find('a').contents[0]
                 followers_usernames.append(username)
 
         return followers_usernames
 
     def getComparisons(self):
         following_usernames = self.getFollowing()
-        self.closeDialog('/html/body/div[3]/div/div[1]/div/div[2]/button')
+        self.closeDialogWindow('/html/body/div[3]/div/div[1]/div/div[2]/button')
         followers_usernames = self.getFollowers()
 
         l = list()
@@ -113,20 +115,24 @@ class InstagramChecker():
 
         return l
 
-    def closeDialog(self, xpath):
+    def closeDialogWindow(self, xpath):
         self.driver.find_element_by_xpath(xpath).click()
 
+    def closeDriver(self):
+        self.driver.close()
 
-if __name__ == "__main__":
-    driver = Driver()
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.closeDriver()
 
+
+if __name__ == '__main__':
     print()
-    ic = InstagramChecker(driver.driver)
-    ic.login("jordanngeorge")
+    ic = InstagramChecker()
+    ic.login('jordanngeorge')
 
     l = ic.getComparisons()
     print()
-    for i in l:
-        print(i)
+    for item in l:
+        print(item)
 
-    driver.close()
+    ic.closeDriver()

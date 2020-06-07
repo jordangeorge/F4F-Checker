@@ -2,6 +2,7 @@ from selenium import webdriver
 import bs4
 import time
 import config
+import json
 
 class InstagramChecker():
     def __init__(self):

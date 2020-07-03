@@ -1,8 +1,8 @@
-from selenium import webdriver
 import bs4
-import time
-import config
 import json
+import os
+from selenium import webdriver
+import time
 
 class InstagramChecker():
     def __init__(self):
@@ -19,8 +19,8 @@ class InstagramChecker():
 
         # login with facebook
         time.sleep(2)
-        self.driver.find_element_by_name('email').send_keys(config.FACEBOOK_EMAIL)
-        self.driver.find_element_by_name('pass').send_keys(config.FACEBOOK_PASSWORD)
+        self.driver.find_element_by_name('email').send_keys(os.environ['FACEBOOK_EMAIL'])
+        self.driver.find_element_by_name('pass').send_keys(os.environ['FACEBOOK_PASSWORD'])
         self.driver.find_element_by_id('loginbutton').click()
 
         # reload home page

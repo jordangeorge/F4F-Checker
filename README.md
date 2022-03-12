@@ -1,4 +1,7 @@
 # Follow for Follow (F4F) Instagram Checker
+
+Alternative title: Instagram Mutual Follow Checker
+
 The main use case is checking if average people you followed through a 'follow for follow' agreement are following you back.
 
 Currently does not work with 2FA.

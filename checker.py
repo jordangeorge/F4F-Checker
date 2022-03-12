@@ -24,15 +24,33 @@ class InstagramChecker():
         self.driver.find_element_by_name('password').send_keys(os.getenv('INSTAGRAM_PASSWORD'))
         self.driver.find_elements_by_xpath("/html/body/div[1]/section/main/article/div[2]/div[1]/div/form/div/div[3]/button/div[contains(text(), 'Iniciar sesión')]")[0].click()
 
-        # click "save information" button
-        time.sleep(3)
-        self.driver.find_elements_by_xpath("/html/body/div[1]/section/main/div/div/div/section/div/button[contains(text(), 'Guardar información')]")[0].click()
-
         # go to profile
         time.sleep(3)
         self.driver.get(self.url + target_profile_username)
 
         time.sleep(2)
+
+    def scroll_through_dialog(self, dialog_ul_div_xpath, num):
+        time.sleep(7)
+        dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
+        li_num = 0
+        while li_num < num:
+        # while li_num < 84: # FIXME: won't scroll beyond here for people i'm following list
+            self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
+            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
+            print(li_num,'<',num)
+
+    def getUlDiv(self):
+        time.sleep(2)
+        page = self.driver.page_source
+        soup = bs4.BeautifulSoup(page, 'lxml')
+        ul_div = soup.find_all('ul')
+        if len(ul_div) == 3:
+            ul_div = ul_div[2]
+        elif len(ul_div) == 4:
+            ul_div = ul_div[3]
+
+        return ul_div
 
     def getFollowing(self):
         print('Getting people following you')
@@ -94,28 +112,6 @@ class InstagramChecker():
             followers_usernames.append({'username': username})
 
         return followers_usernames
-
-    def scroll_through_dialog(self, dialog_ul_div_xpath, num):
-        time.sleep(7)
-        dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
-        li_num = 0
-        # while li_num < num:
-        while li_num < 84: # FIXME: won't scroll beyond here for people i'm following list
-            self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
-            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
-            print(li_num,'<',num)
-
-    def getUlDiv(self):
-        time.sleep(2)
-        page = self.driver.page_source
-        soup = bs4.BeautifulSoup(page, 'lxml')
-        ul_div = soup.find_all('ul')
-        if len(ul_div) == 3:
-            ul_div = ul_div[2]
-        elif len(ul_div) == 4:
-            ul_div = ul_div[3]
-
-        return ul_div
 
     def getComparisons(self):
         following_usernames = self.getFollowing()

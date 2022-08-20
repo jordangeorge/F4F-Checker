@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import bs4
 import json
@@ -22,7 +22,8 @@ class InstagramChecker():
         time.sleep(3)
         self.driver.find_element_by_name('username').send_keys(os.getenv('INSTAGRAM_USERNAME'))
         self.driver.find_element_by_name('password').send_keys(os.getenv('INSTAGRAM_PASSWORD'))
-        self.driver.find_elements_by_xpath("/html/body/div[1]/section/main/article/div[2]/div[1]/div/form/div/div[3]/button/div[contains(text(), 'Iniciar sesión')]")[0].click()
+        time.sleep(1)
+        self.driver.find_elements_by_xpath("/html/body/div[1]/section/main/article/div[2]/div[1]/div[2]/form/div/div[3]/button/div[contains(text(), 'Iniciar sesión')]")[0].click()
 
         # go to profile
         time.sleep(3)
@@ -35,9 +36,8 @@ class InstagramChecker():
         dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
         li_num = 0
         while li_num < num:
-        # while li_num < 84: # FIXME: won't scroll beyond here for people i'm following list
             self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
-            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
+            li_num = len(dialog_ul_div.find_elements_by_tag_name('button'))
             print(li_num,'<',num)
 
     def getUlDiv(self):
@@ -49,26 +49,33 @@ class InstagramChecker():
             ul_div = ul_div[2]
         elif len(ul_div) == 4:
             ul_div = ul_div[3]
-
         return ul_div
 
     def getFollowing(self):
         print('Getting people following you')
-
+        
         # get number of following
-        num_of_following = int(self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a/div/span').text)
+        time.sleep(3)
+        num_of_following = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a/div/span').text)
 
         # click on following dialog
         time.sleep(3)
-        self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a').click()
+        self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a').click()
 
-        self.scroll_through_dialog('/html/body/div[6]/div/div/div/div[3]/ul', num_of_following)
+        print("scrolling started")
+        self.scroll_through_dialog('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div', num_of_following)
+        print("scrolling ended")
 
         following_usernames = list()
         ul_div = self.getUlDiv()
         lis = ul_div.find_all('li')
         for li in lis:
-            username = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[0].find('a').find('span').contents[0]
+            print(li)
+            # username = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[0].find('a').find('span').contents[0]
+            username = li.find_all('div')[1]
+            # username = li.find_all('div')[1].find_all('div')[0].find('div').find('div').find('span').find('a').find('span').find('div').contents[0]
+            # /html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/ div[1]/ div[2]/div[1] /div/ div/span/a/ span/div
+            print(username)
 
             profile_link = self.url + username
 
@@ -102,7 +109,15 @@ class InstagramChecker():
         time.sleep(1)
         self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a').click()
 
-        self.scroll_through_dialog('/html/body/div[6]/div/div/div/div[2]/ul', num_of_followers)
+        # self.scroll_through_dialog('/html/body/div[6]/div/div/div/div[2]/ul', num_of_followers)
+        time.sleep(7)
+        dialog_ul_div = self.driver.find_element_by_xpath('/html/body/div[6]/div/div/div/div[2]/ul')
+        li_num = 0
+        # while li_num < num:
+        while li_num < 83: # FIXME: won't scroll beyond here for people i'm following list
+            self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
+            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
+            print(li_num,'<',num_of_followers)
 
         followers_usernames = list()
         ul_div = self.getUlDiv()
@@ -134,7 +149,6 @@ class InstagramChecker():
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.closeDriver()
-
 
 if __name__ == '__main__':
     ic = InstagramChecker()

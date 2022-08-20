@@ -2,3 +2,6 @@
 *__pycache__
 chromedriver
 .env
+error.txt
+notes.txt
+f4f_venv

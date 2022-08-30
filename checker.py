@@ -86,7 +86,6 @@ class InstagramChecker():
 
         # get number of followers
         num_of_followers = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a/div/span').text)
-        # print("num_of_followers=",num_of_followers)
 
         # click on followers dialog
         time.sleep(1)

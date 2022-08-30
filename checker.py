@@ -12,7 +12,7 @@ load_dotenv()
 class InstagramChecker():
     def __init__(self):
         self.driver = webdriver.Chrome('./chromedriver')
-        self.url = 'https://www.instagram.com/'
+        self.url = 'https://www.instagram.com'
 
     def login(self, target_profile_username):
         # go to instagram
@@ -20,14 +20,14 @@ class InstagramChecker():
 
         # login to instagram
         time.sleep(3)
-        self.driver.find_element_by_name('username').send_keys(os.getenv('INSTAGRAM_USERNAME'))
+        self.driver.find_element_by_name('username').send_keys(target_profile_username)
         self.driver.find_element_by_name('password').send_keys(os.getenv('INSTAGRAM_PASSWORD'))
         time.sleep(1)
         self.driver.find_elements_by_xpath("/html/body/div[1]/section/main/article/div[2]/div[1]/div[2]/form/div/div[3]/button/div[contains(text(), 'Iniciar sesión')]")[0].click()
 
         # go to profile
         time.sleep(3)
-        self.driver.get(self.url + target_profile_username)
+        self.driver.get(self.url + "/" + target_profile_username)
 
         time.sleep(2)
 
@@ -43,52 +43,88 @@ class InstagramChecker():
     def getUlDiv(self):
         time.sleep(2)
         page = self.driver.page_source
-        soup = bs4.BeautifulSoup(page, 'lxml')
-        ul_div = soup.find_all('ul')
-        if len(ul_div) == 3:
-            ul_div = ul_div[2]
-        elif len(ul_div) == 4:
-            ul_div = ul_div[3]
-        return ul_div
+        
+        outputfile=open("output.html","w") 
+        outputfile.write(
+            str(str(page).encode("utf-8","ignore"))
+        )
+        outputfile.close()
+
+
+        # print(page) 
+
+
+        # outputfile=open("output2.html","w") 
+        # outputfile.write(
+        #     # str(page.decode('utf-8'))
+        #     str(page)
+        # )
+        # outputfile.close()
+        
+
+
+        # soup = bs4.BeautifulSoup(page, 'lxml')
+        # soup = bs4.BeautifulSoup(str(page).encode("utf-8","ignore"), 'html.parser')
+        # soup = bs4.BeautifulSoup(str(str(page).encode("utf-8","ignore")), 'html.parser')
+        soup = bs4.BeautifulSoup(str(page), 'html.parser')
+        # soup = bs4.BeautifulSoup(str(page), 'lxml')
+        
+        # print(soup.find_all('span')[15:-1]) # a way possibly
+
+        # print(soup.find_all('div'))
+
+
+        # outputfile=open("output_divs.html","w") 
+        # outputfile.write(
+        #     str(soup.find_all('div'))
+        # )
+        # outputfile.close()
+
+        # ul_div = soup.find_all('ul')
+        # if len(ul_div) == 3:
+        #     ul_div = ul_div[2]
+        # elif len(ul_div) == 4:
+        #     ul_div = ul_div[3]
+        
+        # return ul_div
+        # return soup.find_all('span')[15:-1]
+        return soup.find_all('div')
 
     def getFollowing(self):
         print('Getting people following you')
         
         # get number of following
-        time.sleep(3)
-        num_of_following = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a/div/span').text)
+        time.sleep(4)
+        num_of_following = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a/div/span').text)
 
         # click on following dialog
-        time.sleep(3)
+        time.sleep(4)
         self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a').click()
 
-        print("scrolling started")
         self.scroll_through_dialog('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div', num_of_following)
-        print("scrolling ended")
 
         following_usernames = list()
-        ul_div = self.getUlDiv()
-        lis = ul_div.find_all('li')
-        for li in lis:
-            print(li)
-            # username = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[0].find('a').find('span').contents[0]
-            username = li.find_all('div')[1]
-            # username = li.find_all('div')[1].find_all('div')[0].find('div').find('div').find('span').find('a').find('span').find('div').contents[0]
-            # /html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/ div[1]/ div[2]/div[1] /div/ div/span/a/ span/div
-            print(username)
 
-            profile_link = self.url + username
+        for i in range(0, num_of_following):
+            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
 
+            username = username_and_verify_status[0]
+            # print("username =", username)
+            
             try:
-                display_name = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[1].contents[0]
-            except:
-                display_name = '-'
-
-            try:
-                verify_status = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[1].find('span').contents[0]
-                display_name = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[2].contents[0]
+                verify_status = username_and_verify_status[1]
             except:
                 verify_status = '-'
+            # print("verify_status =", verify_status)
+
+            try:
+                display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
+            except:
+                display_name = "-"
+            # print("display name =", display_name)
+
+            profile_link = self.url + "/" + username
+            # print("profile_link =", profile_link)
 
             following_usernames.append({
                 'username': username,
@@ -120,17 +156,41 @@ class InstagramChecker():
             print(li_num,'<',num_of_followers)
 
         followers_usernames = list()
-        ul_div = self.getUlDiv()
-        lis = ul_div.find_all('li')
-        for li in lis:
-            username = li.find('div').find_all('div')[0].find_all('div')[2].find_all('div')[0].find('a').find('span').contents[0]
-            followers_usernames.append({'username': username})
+
+        for i in range(0, num_of_followers):
+            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
+
+            username = username_and_verify_status[0]
+            # print("username =", username)
+            
+            try:
+                verify_status = username_and_verify_status[1]
+            except:
+                verify_status = '-'
+            # print("verify_status =", verify_status)
+
+            try:
+                display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
+            except:
+                display_name = "-"
+            # print("display name =", display_name)
+
+            profile_link = self.url + "/" + username
+            # print("profile_link =", profile_link)
+
+            followers_usernames.append({
+                'username': username,
+                'profile_link': profile_link,
+                'display_name': display_name,
+                'verify_status': verify_status
+            })
+
 
         return followers_usernames
 
     def getComparisons(self):
         following_usernames = self.getFollowing()
-        self.driver.find_element_by_xpath('/html/body/div[6]/div/div/div/div[1]/div/div[2]/button').click()  # close dialog window
+        self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button').click() # close dialog window
         followers_usernames = self.getFollowers()
 
         l = list()
@@ -152,7 +212,7 @@ class InstagramChecker():
 
 if __name__ == '__main__':
     ic = InstagramChecker()
-    ic.login('jordanngeorge')
+    ic.login(os.getenv('INSTAGRAM_USERNAME'))
 
     l = ic.getComparisons()
     print()

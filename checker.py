@@ -38,64 +38,14 @@ class InstagramChecker():
         while li_num < num:
             self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
             li_num = len(dialog_ul_div.find_elements_by_tag_name('button'))
-            print(li_num,'<',num)
-
-    def getUlDiv(self):
-        time.sleep(2)
-        page = self.driver.page_source
-        
-        outputfile=open("output.html","w") 
-        outputfile.write(
-            str(str(page).encode("utf-8","ignore"))
-        )
-        outputfile.close()
-
-
-        # print(page) 
-
-
-        # outputfile=open("output2.html","w") 
-        # outputfile.write(
-        #     # str(page.decode('utf-8'))
-        #     str(page)
-        # )
-        # outputfile.close()
-        
-
-
-        # soup = bs4.BeautifulSoup(page, 'lxml')
-        # soup = bs4.BeautifulSoup(str(page).encode("utf-8","ignore"), 'html.parser')
-        # soup = bs4.BeautifulSoup(str(str(page).encode("utf-8","ignore")), 'html.parser')
-        soup = bs4.BeautifulSoup(str(page), 'html.parser')
-        # soup = bs4.BeautifulSoup(str(page), 'lxml')
-        
-        # print(soup.find_all('span')[15:-1]) # a way possibly
-
-        # print(soup.find_all('div'))
-
-
-        # outputfile=open("output_divs.html","w") 
-        # outputfile.write(
-        #     str(soup.find_all('div'))
-        # )
-        # outputfile.close()
-
-        # ul_div = soup.find_all('ul')
-        # if len(ul_div) == 3:
-        #     ul_div = ul_div[2]
-        # elif len(ul_div) == 4:
-        #     ul_div = ul_div[3]
-        
-        # return ul_div
-        # return soup.find_all('span')[15:-1]
-        return soup.find_all('div')
+            # print(li_num,'<',num)
 
     def getFollowing(self):
-        print('Getting people following you')
-        
+        print('Getting people you\'re following')
+
         # get number of following
         time.sleep(4)
-        num_of_following = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a/div/span').text)
+        num_of_following = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a/div/span').text)
 
         # click on following dialog
         time.sleep(4)
@@ -109,22 +59,18 @@ class InstagramChecker():
             username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
 
             username = username_and_verify_status[0]
-            # print("username =", username)
             
             try:
                 verify_status = username_and_verify_status[1]
             except:
                 verify_status = '-'
-            # print("verify_status =", verify_status)
 
             try:
                 display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
             except:
                 display_name = "-"
-            # print("display name =", display_name)
 
             profile_link = self.url + "/" + username
-            # print("profile_link =", profile_link)
 
             following_usernames.append({
                 'username': username,
@@ -136,47 +82,36 @@ class InstagramChecker():
         return following_usernames
 
     def getFollowers(self):
-        print('Getting your followers')
+        print('Getting people following you')
 
         # get number of followers
-        num_of_followers = int(self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[3]/a/div/span').text)
+        num_of_followers = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a/div/span').text)
+        # print("num_of_followers=",num_of_followers)
 
         # click on followers dialog
         time.sleep(1)
-        self.driver.find_element_by_xpath('//*[@id="react-root"]/section/main/div/header/section/ul/li[2]/a').click()
+        self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a').click()
 
-        # self.scroll_through_dialog('/html/body/div[6]/div/div/div/div[2]/ul', num_of_followers)
-        time.sleep(7)
-        dialog_ul_div = self.driver.find_element_by_xpath('/html/body/div[6]/div/div/div/div[2]/ul')
-        li_num = 0
-        # while li_num < num:
-        while li_num < 83: # FIXME: won't scroll beyond here for people i'm following list
-            self.driver.execute_script('return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);', dialog_ul_div)
-            li_num = len(dialog_ul_div.find_elements_by_tag_name('li'))
-            print(li_num,'<',num_of_followers)
+        self.scroll_through_dialog('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div', num_of_followers)
 
         followers_usernames = list()
 
         for i in range(0, num_of_followers):
-            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
 
             username = username_and_verify_status[0]
-            # print("username =", username)
-            
+
             try:
                 verify_status = username_and_verify_status[1]
             except:
                 verify_status = '-'
-            # print("verify_status =", verify_status)
 
             try:
-                display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
+                display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
             except:
                 display_name = "-"
-            # print("display name =", display_name)
 
             profile_link = self.url + "/" + username
-            # print("profile_link =", profile_link)
 
             followers_usernames.append({
                 'username': username,
@@ -210,18 +145,46 @@ class InstagramChecker():
     def __exit__(self, exc_type, exc_value, traceback):
         self.closeDriver()
 
+def put_results_in_file(l, fmt_amts_str):
+    filename = "results.txt"
+
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+    results_file = open(filename, "a")
+
+    results_file.write(str(fmt_amts_str.format('Username', 'Profile Link', 'Display Name', 'Verify Status')))
+    results_file.write(str('\n'))
+    results_file.write(str('-' * sum(fmt_amts)))
+    results_file.write(str('\n'))
+
+    for item in l:
+        results_file.write(str(fmt_amts_str.format(item['username'], item['profile_link'], item['display_name'], item['verify_status'])))
+        results_file.write(str('\n'))
+
+    results_file.close()
+
+def print_results_to_console(l, fmt_amts_str):
+    print(fmt_amts_str.format('Username', 'Profile Link', 'Display Name', 'Verify Status'))
+    print('-' * sum(fmt_amts))
+    for item in l:
+        print(fmt_amts_str.format(item['username'], item['profile_link'], item['display_name'], item['verify_status']))
+    print()
+
 if __name__ == '__main__':
     ic = InstagramChecker()
     ic.login(os.getenv('INSTAGRAM_USERNAME'))
 
     l = ic.getComparisons()
     print()
+
     fmt_amts = [25, 55, 35, len('Verify Status')]
     fmt_amts_str = ''
     for i in fmt_amts: fmt_amts_str += '{:' + str(i) + '}'
-    print(fmt_amts_str.format('Username', 'Profile Link', 'Display Name', 'Verify Status'))
-    print('-' * sum(fmt_amts))
-    for item in l:
-        print(fmt_amts_str.format(item['username'], item['profile_link'], item['display_name'], item['verify_status']))
+
+    put_results_in_file(l, fmt_amts_str)
+    # print_results_to_console(l, fmt_amts_str)
 
     ic.closeDriver()
+
+    print("Done.")

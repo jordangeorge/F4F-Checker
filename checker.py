@@ -35,8 +35,11 @@ class InstagramChecker():
         self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='_ab8w  _ab94 _ab99 _ab9f _ab9m _ab9p _abcm']"))).click() 
 
         # go to profile
-        # self.driver.get(self.url + "/" + self.target_profile_username)
-        self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
+        try:
+            self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
+        except:
+            # "Activar notificaciones" modal shows
+            self.driver.get(self.url + "/" + self.target_profile_username)
 
         time.sleep(5)
 
@@ -146,14 +149,20 @@ class InstagramChecker():
         return l
 
     def createSortedCSV(self, l):
+        print("creating ratio sorted csv file...")
+
         for user in l:
+            print(user['username'])
+
             # go to profile
             self.driver.get(self.url + "/" + user['username'])
+            
+            print("getting followers")
 
             # get number of followers
             followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
             
-            print(followers_string)
+            # print(followers_string)
 
             followers_int = 0
             if "mil" in followers_string:
@@ -171,26 +180,53 @@ class InstagramChecker():
                 followers_int = int(multiply)
             else:
                 convert_to_float = float(followers_string)
-                multiply = convert_to_float * 1000000
+                multiply = convert_to_float
                 followers_int = int(multiply)
 
-            print(followers_int)
+            # print(followers_int)
 
             # add to dict
             user['followers'] = followers_int
 
+            print("getting following")
 
+            # get number of following
+            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text
+            
+            # print(following_string)
 
+            following_int = 0
+            if "mil" in following_string:
+                # is , being registered as . at all?
+                just_numbers = following_string.split(" ")[0]
+                replace_comma = just_numbers.replace(',', '.')
+                convert_to_float = float(replace_comma)
+                multiply = convert_to_float * 1000
+                following_int = int(multiply)
+            elif "M" in following_string:
+                just_numbers = following_string.strip("M")
+                replace_comma = just_numbers.replace(',', '.')
+                convert_to_float = float(replace_comma)
+                multiply = convert_to_float * 1000000
+                following_int = int(multiply)
+            else:
+                convert_to_float = float(following_string)
+                multiply = convert_to_float 
+                following_int = int(multiply)
 
+            # print(following_int)
 
+            # add to dict
+            user['following'] = following_int
 
-        # print(l[0])
-        # print(len(l))
-        # print("l=",l)
+            user['ratio'] = round(followers_int / following_int, 1)
+
+            print(f"follower:following ratio for \"{user['username']}\": {user['ratio']}")
+            print('------------------------------')
 
         # sort by following
-        sorted_dict = sorted(l, key=itemgetter("followers"), reverse=True)
-        print(sorted_dict)
+        sorted_dict = sorted(l, key=itemgetter("ratio"), reverse=True)
+        # print(sorted_dict)
 
         # create csv file
         dir_name = 'csv_results'
@@ -201,6 +237,7 @@ class InstagramChecker():
         file_path = "./" + dir_name + "/results_" + current_time + ".csv"
         
         df = pandas.DataFrame(sorted_dict)
+        print(df['ratio'].head())
         df.to_csv(file_path, sep=',', index=False)
 
     def closeDriver(self):
@@ -221,8 +258,7 @@ def put_results_in_file(l, fmt_amts_str):
 
     results_file.write(str(fmt_amts_str.format('Username', 'Profile Link', 'Display Name', 'Verify Status')))
     results_file.write(str('\n'))
-    # results_file.write(str('-' * sum(fmt_amts)))
-    results_file.write(str('-' * sum(fmt_amts_str)))
+    results_file.write(str('-' * sum(fmt_amts)))
     results_file.write(str('\n'))
 
     for item in l:

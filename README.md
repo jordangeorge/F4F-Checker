@@ -4,7 +4,7 @@ Alternative title: Instagram Mutual Follow Checker
 
 The main use case is checking if average people you followed through a 'follow for follow' agreement are following you back.
 
-Currently does not work with 2FA. Therefore, it must be turned off in the Privacy and Security section of Instagram settings before using.
+Currently does not work with 2FA. Therefore, it must be turned off in the Privacy and Security section of Instagram settings before using which can be found [here](https://www.instagram.com/accounts/privacy_and_security/).
 
 ##### Use Details
 - View Google Chrome version for ChromeDriver by selecting "Chrome" in the menu bar. Then select "About Google Chrome".

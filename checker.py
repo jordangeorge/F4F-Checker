@@ -250,12 +250,12 @@ class InstagramChecker():
         # print(sorted_data)
 
         # create csv file
-        dir_name = 'csv_results'
+        dir_name = 'csv'
         if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+            os.mkdir("./results/" + dir_name)
 
         current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        file_path = "./" + dir_name + "/results_" + current_time + ".csv"
+        file_path = "./results/" + dir_name + "/results_" + current_time + ".csv"
         
         df = pandas.DataFrame(sorted_data)
         print()
@@ -270,12 +270,12 @@ class InstagramChecker():
         self.closeDriver()
 
 def put_results_in_file(l, fmt_amts_str):
-    dir_name = 'results'
+    dir_name = 'text'
     if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+        os.mkdir("./results/" + dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    file_path = "./" + dir_name + "/results_" + current_time + ".txt"
+    file_path = "./results/" + dir_name + "/results_" + current_time + ".txt"
 
     results_file = open(file_path, "a")
 
@@ -304,6 +304,10 @@ if __name__ == '__main__':
     logging.info('Started')
 
     print()
+
+    dir_name = 'results'
+    if not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
     
     ic = InstagramChecker()
     no_alert_found = ic.login()

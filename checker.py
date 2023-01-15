@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from operator import itemgetter
-import pandas
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -74,7 +74,7 @@ class InstagramChecker():
             li_num = len(dialog_ul_div.find_elements_by_tag_name('button'))
             # print(li_num,'<',num)
 
-    def getFollowing(self):
+    def get_following(self):
         print('Getting people ' + self.target_profile_username + ' is following')
 
         # get number of following
@@ -113,7 +113,7 @@ class InstagramChecker():
 
         return following_usernames
 
-    def getFollowers(self):
+    def get_followers(self):
         print('Getting people that are following ' + self.target_profile_username)
 
         # get number of followers
@@ -152,10 +152,10 @@ class InstagramChecker():
 
         return followers_usernames
 
-    def getComparisons(self):
-        following_usernames = self.getFollowing()
+    def get_comparisons(self):
+        following_usernames = self.get_following()
         self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button').click() # close dialog window
-        followers_usernames = self.getFollowers()
+        followers_usernames = self.get_followers()
 
         result_list = list()
 
@@ -169,7 +169,7 @@ class InstagramChecker():
         return result_list
 
     # TODO: refactor
-    def createSortedCSV(self, result_list):
+    def create_ratio_sorted_csv(self, result_list, use_pickle):
         print("Creating ratio sorted csv file...")
 
         for user in result_list:
@@ -257,17 +257,22 @@ class InstagramChecker():
         current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         file_path = "./results/" + dir_name + "/results_" + current_time + ".csv"
         
-        df = pandas.DataFrame(sorted_data)
+        df = pd.DataFrame(sorted_data)
         print()
         print(df['ratio'].head())
         print()
         df.to_csv(file_path, sep=',', index=False)
 
-    def closeDriver(self):
+        # create pickle for df
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        df.to_pickle(f'data_{current_time}.pkl')
+
+    def close_driver(self):
         self.driver.close()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.closeDriver()
+        self.close_driver()
 
 def put_results_in_file(l, fmt_amts_str):
     dir_name = 'text'
@@ -300,23 +305,65 @@ def print_results_to_console(l, fmt_amts_str):
         print(fmt_amts_str.format(item['username'], item['profile_link'], item['display_name'], item['verify_status']))
     print()
 
-if __name__ == '__main__':
-    logging.info('Started')
+# for sorting by another column besides "ratio"
+def usePickle(sort_by_column):
+    print(f"Creating {sort_by_column} sorted csv file...")
 
+    dir_name = "pickles"
+    if not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
+
+    # get latest pickle file
+    files = os.listdir(dir_name)
+    paths = [os.path.join(dir_name, basename) for basename in files]
+    print(max(paths, key=os.path.getctime))
+    pickle_file_path = max(paths, key=os.path.getctime)
+
+    # get data from pickle file
+    df = pd.read_pickle(pickle_file_path)
+
+    # sort df
+    df.sort_values(sort_by_column)
+
+    # show a few rows
     print()
+    print(df[sort_by_column].head())
+    print()
+
+    # create csv file
+    dir_name = 'csv'
+    if not os.path.isdir(dir_name):
+        os.mkdir("./results/" + dir_name)
+
+    current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    csv_file_path = "./results/" + dir_name + "/results_" + current_time + ".csv"
+
+    df.to_csv(csv_file_path, sep=',', index=False)
+
+if __name__ == "__main__":
+    logging.info('Started')
 
     dir_name = 'results'
     if not os.path.isdir(dir_name):
         os.mkdir(dir_name)
+
+    print()
+
+    # Set to True and change column_to_sort_by if you want to sort by a column other than "ratio" in the csv result file. Also can be used to use old data and not have to go through the whole process below again if it's already been done once.
+    use_pickle = False
+    column_to_sort_by = "followers"
+    if use_pickle:
+        usePickle(column_to_sort_by)
+        exit()
     
     ic = InstagramChecker()
     no_alert_found = ic.login()
 
     if no_alert_found:
-        result_list = ic.getComparisons()
+        result_list = ic.get_comparisons()
         print()
 
-        ic.createSortedCSV(result_list)
+        ic.create_ratio_sorted_csv(result_list)
 
         fmt_amts = [25, 55, 35, len('Verify Status')]
         fmt_amts_str = ''

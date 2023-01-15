@@ -1,10 +1,14 @@
 #!/usr/bin/python3
 
 import bs4
+from datetime import datetime
 import json
 import os
 from dotenv import load_dotenv
 from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 import time
 
 load_dotenv()
@@ -13,23 +17,30 @@ class InstagramChecker():
     def __init__(self):
         self.driver = webdriver.Chrome('./chromedriver')
         self.url = 'https://www.instagram.com'
+        self.wait = WebDriverWait(self.driver, 15)
+        self.target_profile_username = os.getenv('INSTAGRAM_USERNAME')
 
-    def login(self, target_profile_username):
+    def login(self):
         # go to instagram
         self.driver.get(self.url)
 
-        # login to instagram
+        # input username and password
         time.sleep(3)
-        self.driver.find_element_by_name('username').send_keys(target_profile_username)
+        self.driver.find_element_by_name('username').send_keys(self.target_profile_username)
         self.driver.find_element_by_name('password').send_keys(os.getenv('INSTAGRAM_PASSWORD'))
+        
+        # click login button
         time.sleep(1)
-        self.driver.find_elements_by_xpath("/html/body/div[1]/section/main/article/div[2]/div[1]/div[2]/form/div/div[3]/button/div[contains(text(), 'Iniciar sesión')]")[0].click()
+        login_button = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='_ab8w  _ab94 _ab99 _ab9f _ab9m _ab9p _abcm']")))
+        login_button.click() 
 
         # go to profile
         time.sleep(3)
-        self.driver.get(self.url + "/" + target_profile_username)
+        self.driver.get(self.url + "/" + self.target_profile_username)
 
-        time.sleep(2)
+        time.sleep(5)
+
+        # print("on profile")
 
     def scroll_through_dialog(self, dialog_ul_div_xpath, num):
         time.sleep(7)
@@ -41,22 +52,26 @@ class InstagramChecker():
             # print(li_num,'<',num)
 
     def getFollowing(self):
-        print('Getting people you\'re following')
+        print('Getting people ' + self.target_profile_username + ' is following')
 
         # get number of following
         time.sleep(4)
-        num_of_following = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a/div/span').text)
+        num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text)
+        # print("num_of_following:",num_of_following)
 
         # click on following dialog
         time.sleep(4)
-        self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[3]/a').click()
-
-        self.scroll_through_dialog('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div', num_of_following)
+        self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
+        # print("clicked followingdialog")
+        
+        # print("scrolling")
+        self.scroll_through_dialog('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]', num_of_following)
+        # print("done scrolling")
 
         following_usernames = list()
 
         for i in range(0, num_of_following):
-            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/div/a/span/div').text.split('\n')
 
             username = username_and_verify_status[0]
             
@@ -66,37 +81,41 @@ class InstagramChecker():
                 verify_status = '-'
 
             try:
-                display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
+                display_name = self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
             except:
                 display_name = "-"
 
-            profile_link = self.url + "/" + username
-
             following_usernames.append({
                 'username': username,
-                'profile_link': profile_link,
+                'profile_link': self.url + "/" + username,
                 'display_name': display_name,
                 'verify_status': verify_status
             })
+        
+        # print()
+        # print()
 
         return following_usernames
 
     def getFollowers(self):
-        print('Getting people following you')
+        print('Getting people that are following ' + self.target_profile_username)
 
         # get number of followers
-        num_of_followers = int(self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a/div/span').text)
+        num_of_followers = int(self.driver.find_elements_by_css_selector("span[class='_ac2a']")[1].text)
+        # print("num_of_followers:",num_of_followers)
 
         # click on followers dialog
         time.sleep(1)
-        self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[1]/div/div/div/div[1]/div[1]/section/main/div/header/section/ul/li[2]/a').click()
+        self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[2]/section/main/div/header/section/ul/li[2]/a').click()
 
-        self.scroll_through_dialog('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div', num_of_followers)
+        # print("scrolling")
+        self.scroll_through_dialog('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]', num_of_followers)
+        # print("done scrolling")
 
         followers_usernames = list()
 
         for i in range(0, num_of_followers):
-            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div['+str(i+1)+']/div[2]/div[1]/div/div/span/a/span/div').text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div/div['+str(i+1)+']/div[2]/div[1]/div/div/div/a/span/div').text.split("\n")
 
             username = username_and_verify_status[0]
 
@@ -106,15 +125,13 @@ class InstagramChecker():
                 verify_status = '-'
 
             try:
-                display_name = self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div['+str(i+1)+']/div[2]/div[2]/div').text
+                display_name = self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div/div['+str(i+1)+']/div[2]/div[2]/div').text
             except:
                 display_name = "-"
 
-            profile_link = self.url + "/" + username
-
             followers_usernames.append({
                 'username': username,
-                'profile_link': profile_link,
+                'profile_link': self.url + "/" + username,
                 'display_name': display_name,
                 'verify_status': verify_status
             })
@@ -124,7 +141,7 @@ class InstagramChecker():
 
     def getComparisons(self):
         following_usernames = self.getFollowing()
-        self.driver.find_element_by_xpath('/html/body/div[1]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button').click() # close dialog window
+        self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button').click() # close dialog window
         followers_usernames = self.getFollowers()
 
         l = list()
@@ -145,7 +162,8 @@ class InstagramChecker():
         self.closeDriver()
 
 def put_results_in_file(l, fmt_amts_str):
-    filename = "results.txt"
+    current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    filename = "results_"+current_time+".txt"
 
     if os.path.isfile(filename):
         os.remove(filename)
@@ -172,7 +190,7 @@ def print_results_to_console(l, fmt_amts_str):
 
 if __name__ == '__main__':
     ic = InstagramChecker()
-    ic.login(os.getenv('INSTAGRAM_USERNAME'))
+    ic.login()
 
     l = ic.getComparisons()
     print()

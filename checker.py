@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 import os
 from dotenv import load_dotenv
+import logging
 from operator import itemgetter
 import pandas
 from selenium import webdriver
@@ -12,6 +13,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import time
+
+logging.basicConfig(
+    filename='status.log',
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 load_dotenv()
 
@@ -32,7 +39,18 @@ class InstagramChecker():
         self.driver.find_element_by_name('password').send_keys(os.getenv('INSTAGRAM_PASSWORD'))
         
         # click login button
-        self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='_ab8w  _ab94 _ab99 _ab9f _ab9m _ab9p _abcm']"))).click() 
+        self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='_ab8w  _ab94 _ab99 _ab9f _ab9m _ab9p _abcm']"))).click()
+        
+        time.sleep(5)
+        # Looking for alerts such as "Espera unos minutos antes de volver a intentarlo."
+        try:
+            alert = self.driver.find_element_by_css_selector("div[class='_ab2z']")
+            print(f"Alert found: {alert.text}\nExiting program.\n")
+            logging.error(f"Need to wait before executing again. Alert found: {alert.text}")
+            return False
+        except:
+            print("No alert found.")
+            pass
 
         # go to profile
         try:
@@ -42,6 +60,8 @@ class InstagramChecker():
             self.driver.get(self.url + "/" + self.target_profile_username)
 
         time.sleep(5)
+
+        return True
 
     def scroll_through_dialog(self, dialog_ul_div_xpath, num):
         time.sleep(7)
@@ -137,27 +157,28 @@ class InstagramChecker():
         self.driver.find_element_by_xpath('/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button').click() # close dialog window
         followers_usernames = self.getFollowers()
 
-        l = list()
+        result_list = list()
 
         for i in range(len(following_usernames)):
             for j in range(len(followers_usernames)):
                 if following_usernames[i]['username'] == followers_usernames[j]['username']:
                     break
                 elif following_usernames[i]['username'] != followers_usernames[j]['username'] and j == len(followers_usernames)-1:
-                    l.append(following_usernames[i])
+                    result_list.append(following_usernames[i])
 
-        return l
+        return result_list
 
-    def createSortedCSV(self, l):
-        print("creating ratio sorted csv file...")
+    # TODO: refactor
+    def createSortedCSV(self, result_list):
+        print("Creating ratio sorted csv file...")
 
-        for user in l:
+        for user in result_list:
             print(user['username'])
 
             # go to profile
             self.driver.get(self.url + "/" + user['username'])
             
-            print("getting followers")
+            print("Getting followers")
 
             # get number of followers
             followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
@@ -188,7 +209,7 @@ class InstagramChecker():
             # add to dict
             user['followers'] = followers_int
 
-            print("getting following")
+            print("Getting following")
 
             # get number of following
             following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text
@@ -224,9 +245,9 @@ class InstagramChecker():
             print(f"follower:following ratio for \"{user['username']}\": {user['ratio']}")
             print('------------------------------')
 
-        # sort by following
-        sorted_dict = sorted(l, key=itemgetter("ratio"), reverse=True)
-        # print(sorted_dict)
+        # sort by ratio
+        sorted_data = sorted(result_list, key=itemgetter("ratio"), reverse=True)
+        # print(sorted_data)
 
         # create csv file
         dir_name = 'csv_results'
@@ -236,8 +257,10 @@ class InstagramChecker():
         current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         file_path = "./" + dir_name + "/results_" + current_time + ".csv"
         
-        df = pandas.DataFrame(sorted_dict)
+        df = pandas.DataFrame(sorted_data)
+        print()
         print(df['ratio'].head())
+        print()
         df.to_csv(file_path, sep=',', index=False)
 
     def closeDriver(self):
@@ -278,23 +301,28 @@ def print_results_to_console(l, fmt_amts_str):
     print()
 
 if __name__ == '__main__':
+    logging.info('Started')
+
     print()
     
     ic = InstagramChecker()
-    ic.login()
+    no_alert_found = ic.login()
 
-    l = ic.getComparisons()
-    print()
+    if no_alert_found:
+        result_list = ic.getComparisons()
+        print()
 
-    ic.createSortedCSV(l)
+        ic.createSortedCSV(result_list)
 
-    fmt_amts = [25, 55, 35, len('Verify Status')]
-    fmt_amts_str = ''
-    for i in fmt_amts: fmt_amts_str += '{:' + str(i) + '}'
+        fmt_amts = [25, 55, 35, len('Verify Status')]
+        fmt_amts_str = ''
+        for i in fmt_amts: fmt_amts_str += '{:' + str(i) + '}'
 
-    put_results_in_file(l, fmt_amts_str)
-    # print_results_to_console(l, fmt_amts_str)
+        put_results_in_file(result_list, fmt_amts_str)
+        # print_results_to_console(result_list, fmt_amts_str)
+
+        print("Done.\n")
 
     ic.closeDriver()
 
-    print("Done.\n")
+    

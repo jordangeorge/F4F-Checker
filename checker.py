@@ -5,6 +5,8 @@ from datetime import datetime
 import json
 import os
 from dotenv import load_dotenv
+from operator import itemgetter
+import pandas
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -143,6 +145,64 @@ class InstagramChecker():
 
         return l
 
+    def createSortedCSV(self, l):
+        for user in l:
+            # go to profile
+            self.driver.get(self.url + "/" + user['username'])
+
+            # get number of followers
+            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
+            
+            print(followers_string)
+
+            followers_int = 0
+            if "mil" in followers_string:
+                # is , being registered as . at all?
+                just_numbers = followers_string.split(" ")[0]
+                replace_comma = just_numbers.replace(',', '.')
+                convert_to_float = float(replace_comma)
+                multiply = convert_to_float * 1000
+                followers_int = int(multiply)
+            elif "M" in followers_string:
+                just_numbers = followers_string.strip("M")
+                replace_comma = just_numbers.replace(',', '.')
+                convert_to_float = float(replace_comma)
+                multiply = convert_to_float * 1000000
+                followers_int = int(multiply)
+            else:
+                convert_to_float = float(followers_string)
+                multiply = convert_to_float * 1000000
+                followers_int = int(multiply)
+
+            print(followers_int)
+
+            # add to dict
+            user['followers'] = followers_int
+
+
+
+
+
+
+        # print(l[0])
+        # print(len(l))
+        # print("l=",l)
+
+        # sort by following
+        sorted_dict = sorted(l, key=itemgetter("followers"), reverse=True)
+        print(sorted_dict)
+
+        # create csv file
+        dir_name = 'csv_results'
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+
+        current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        file_path = "./" + dir_name + "/results_" + current_time + ".csv"
+        
+        df = pandas.DataFrame(sorted_dict)
+        df.to_csv(file_path, sep=',', index=False)
+
     def closeDriver(self):
         self.driver.close()
 
@@ -154,14 +214,15 @@ def put_results_in_file(l, fmt_amts_str):
     if not os.path.isdir(dir_name):
         os.mkdir(dir_name)
 
-    current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     file_path = "./" + dir_name + "/results_" + current_time + ".txt"
 
     results_file = open(file_path, "a")
 
     results_file.write(str(fmt_amts_str.format('Username', 'Profile Link', 'Display Name', 'Verify Status')))
     results_file.write(str('\n'))
-    results_file.write(str('-' * sum(fmt_amts)))
+    # results_file.write(str('-' * sum(fmt_amts)))
+    results_file.write(str('-' * sum(fmt_amts_str)))
     results_file.write(str('\n'))
 
     for item in l:
@@ -188,6 +249,8 @@ if __name__ == '__main__':
 
     l = ic.getComparisons()
     print()
+
+    ic.createSortedCSV(l)
 
     fmt_amts = [25, 55, 35, len('Verify Status')]
     fmt_amts_str = ''

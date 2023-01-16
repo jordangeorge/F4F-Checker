@@ -30,6 +30,8 @@ class InstagramChecker():
         self.target_profile_username = os.getenv("INSTAGRAM_USERNAME")
 
     def login(self):
+        print("Logging in")
+
         # go to instagram
         self.driver.get(self.url)
 
@@ -43,13 +45,16 @@ class InstagramChecker():
         
         time.sleep(5)
         # Looking for alerts such as "Espera unos minutos antes de volver a intentarlo."
+        # This might happen if this program is used too much because there are too many
+        # hits from this IP.
+        # TODO: Should be back again in -- hours.
         try:
             alert = self.driver.find_element_by_css_selector("div[class='_ab2z']")
             print(f"Alert found: {alert.text}\nExiting program.\n")
             logging.error(f"Need to wait before executing again. Alert found: {alert.text}")
             return False
         except:
-            print("No alert found.")
+            print("No alert found")
             pass
 
         # go to profile
@@ -61,9 +66,13 @@ class InstagramChecker():
 
         time.sleep(5)
 
+        print("Login successful")
+
         return True
 
     def scroll_through_dialog(self, dialog_ul_div_xpath, num):
+        print("Scrolling")
+
         time.sleep(7)
         dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
         # dialog_ul_div = self.wait.until(EC.presence_of_element_located((By.XPATH, dialog_ul_div_xpath)))
@@ -75,13 +84,13 @@ class InstagramChecker():
             # print(li_num,"<",num)
 
     def get_following(self):
-        print("Getting people " + self.target_profile_username + " is following")
+        print("Getting people \"" + self.target_profile_username + "\" is following")
 
         # get number of following
         time.sleep(4)
         num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text)
 
-        # todo
+        # TODO: change xpath
         # click on following dialog
         time.sleep(4)
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
@@ -115,7 +124,7 @@ class InstagramChecker():
         return following_usernames
 
     def get_followers(self):
-        print("Getting people that are following " + self.target_profile_username)
+        print("Getting people that are following \"" + self.target_profile_username + "\"")
 
         # get number of followers
         num_of_followers = int(self.driver.find_elements_by_css_selector("span[class='_ac2a']")[1].text)
@@ -170,8 +179,9 @@ class InstagramChecker():
         return result_list
 
     # TODO: refactor
-    def create_ratio_sorted_csv(self, result_list, use_pickle):
-        print("Creating ratio sorted csv file...")
+    def create_ratio_sorted_csv(self, result_list):
+        print("Creating ratio sorted csv file")
+        print()
 
         for user in result_list:
             print(user["username"])
@@ -251,23 +261,27 @@ class InstagramChecker():
         # print(sorted_data)
 
         # create csv file
-        dir_name = "csv"
-        if not os.path.isdir(dir_name):
-            os.mkdir("./results/" + dir_name)
-
-        current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        file_path = "./results/" + dir_name + "/results_" + current_time + ".csv"
-        
-        df = pd.DataFrame(sorted_data)
-        print()
-        print(df["ratio"].head())
-        print()
-        df.to_csv(file_path, sep=",", index=False)
-
-        # create pickle for df
+        dir_name = "./results/csv/"
         if not os.path.isdir(dir_name):
             os.mkdir(dir_name)
-        df.to_pickle(f"data_{current_time}.pkl")
+
+        current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        csv_file_path = dir_name + "/results_" + current_time + ".csv"
+        
+        df = pd.DataFrame(sorted_data)
+        # print()
+        # print(df["ratio"].head())
+        # print()
+        df.to_csv(csv_file_path, sep=",", index=False)
+
+        print(f"CSV results are located here: {csv_file_path}")
+
+        # create pickle for df
+        dir_name = "pickles/"
+        if not os.path.isdir(dir_name):
+            os.mkdir(dir_name)
+        pickle_file_path = f"{dir_name}data_{current_time}.pkl"
+        df.to_pickle(pickle_file_path)
 
     def close_driver(self):
         self.driver.close()
@@ -276,14 +290,14 @@ class InstagramChecker():
         self.close_driver()
 
 def put_results_in_file(result_list, fmt_amts_str):
-    dir_name = "text"
+    dir_name = "./results/text"
     if not os.path.isdir(dir_name):
-        os.mkdir("./results/" + dir_name)
+        os.mkdir(dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    file_path = "./results/" + dir_name + "/results_" + current_time + ".txt"
+    text_file_path = dir_name + "/results_" + current_time + ".txt"
 
-    results_file = open(file_path, "a")
+    results_file = open(text_file_path, "a")
 
     results_file.write(str(fmt_amts_str.format("Username", "Profile Link", "Display Name", "Verify Status")))
     results_file.write(str("\n"))
@@ -296,7 +310,7 @@ def put_results_in_file(result_list, fmt_amts_str):
 
     results_file.close()
 
-    print(f"Results are located here: {file_path}")
+    print(f"Text results are located here: {text_file_path}")
     print()
 
 def print_results_to_console(l, fmt_amts_str):
@@ -307,39 +321,49 @@ def print_results_to_console(l, fmt_amts_str):
     print()
 
 # for sorting by another column besides "ratio"
-def usePickle(sort_by_column):
+def use_pickle(sort_by_column):
     print(f"Creating {sort_by_column} sorted csv file...")
 
     dir_name = "pickles"
     if not os.path.isdir(dir_name):
         os.mkdir(dir_name)
 
+    # TODO: test
     # get latest pickle file
     files = os.listdir(dir_name)
     paths = [os.path.join(dir_name, basename) for basename in files]
-    print(max(paths, key=os.path.getctime))
+    # print("paths:",paths)
+    # print("os.path.getctime:",os.path.getctime)
+    # print("max(paths, key=os.path.getctime):",max(paths, key=os.path.getctime))
     pickle_file_path = max(paths, key=os.path.getctime)
+    # print("pickle_file_path:", pickle_file_path)
 
     # get data from pickle file
     df = pd.read_pickle(pickle_file_path)
 
     # sort df
-    df.sort_values(sort_by_column)
+    df = df.sort_values(
+        by=sort_by_column,
+        ascending=False
+    )
 
-    # show a few rows
-    print()
-    print(df[sort_by_column].head())
-    print()
+    # # show a few rows
+    # print()
+    # print(df[sort_by_column].head())
+    # print()
 
     # create csv file
-    dir_name = "csv"
+    dir_name = "./results/csv"
     if not os.path.isdir(dir_name):
-        os.mkdir("./results/" + dir_name)
+        os.mkdir(dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    csv_file_path = "./results/" + dir_name + "/results_" + current_time + ".csv"
+    csv_file_path = dir_name + "/results_" + current_time + ".csv"
 
     df.to_csv(csv_file_path, sep=",", index=False)
+
+    print(f"CSV results are located here: {csv_file_path}")
+    print()
 
 if __name__ == "__main__":
     logging.info("Started")
@@ -350,11 +374,12 @@ if __name__ == "__main__":
 
     print()
 
-    # Set to True and change column_to_sort_by if you want to sort by a column other than "ratio" in the csv result file. Also can be used to use old data and not have to go through the whole process below again if it's already been done once.
-    use_pickle = False
+    # Set use_pickle_flag to True and change column_to_sort_by if you want to sort by a column other than "ratio" in the csv result file. Also can be used to use old data and not have to go through the whole process below again if it's already been done once.
+    use_pickle_flag = False
+    # use_pickle_flag = True
     column_to_sort_by = "followers"
-    if use_pickle:
-        usePickle(column_to_sort_by)
+    if use_pickle_flag:
+        use_pickle(column_to_sort_by)
         exit()
     
     ic = InstagramChecker()
@@ -375,6 +400,4 @@ if __name__ == "__main__":
 
         print("Done.\n")
 
-    ic.closeDriver()
-
-    
+    ic.close_driver()

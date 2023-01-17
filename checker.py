@@ -269,9 +269,6 @@ class InstagramChecker():
         csv_file_path = dir_name + "/results_" + current_time + ".csv"
         
         df = pd.DataFrame(sorted_data)
-        # print()
-        # print(df["ratio"].head())
-        # print()
         df.to_csv(csv_file_path, sep=",", index=False)
 
         print(f"CSV results are located here: {csv_file_path}")
@@ -328,15 +325,10 @@ def use_pickle(sort_by_column):
     if not os.path.isdir(dir_name):
         os.mkdir(dir_name)
 
-    # TODO: test
     # get latest pickle file
     files = os.listdir(dir_name)
     paths = [os.path.join(dir_name, basename) for basename in files]
-    # print("paths:",paths)
-    # print("os.path.getctime:",os.path.getctime)
-    # print("max(paths, key=os.path.getctime):",max(paths, key=os.path.getctime))
     pickle_file_path = max(paths, key=os.path.getctime)
-    # print("pickle_file_path:", pickle_file_path)
 
     # get data from pickle file
     df = pd.read_pickle(pickle_file_path)
@@ -346,11 +338,6 @@ def use_pickle(sort_by_column):
         by=sort_by_column,
         ascending=False
     )
-
-    # # show a few rows
-    # print()
-    # print(df[sort_by_column].head())
-    # print()
 
     # create csv file
     dir_name = "./results/csv"

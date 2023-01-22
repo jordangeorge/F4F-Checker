@@ -66,7 +66,7 @@ class InstagramChecker():
 
         time.sleep(5)
 
-        print("Login successful")
+        print("Login successful\n")
 
         return True
 
@@ -83,8 +83,10 @@ class InstagramChecker():
             li_num = len(dialog_ul_div.find_elements_by_tag_name("button"))
             # print(li_num,"<",num)
 
+        print("Done scrolling")
+
     def get_following(self):
-        print("Getting people \"" + self.target_profile_username + "\" is following")
+        print("Getting people \"" + self.target_profile_username + "\" is following...")
 
         # get number of following
         time.sleep(4)
@@ -100,7 +102,7 @@ class InstagramChecker():
         following_usernames = list()
 
         for i in range(0, num_of_following):
-            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/div/a/span/div").text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/span/a/span/div").text.split("\n")
 
             username = username_and_verify_status[0]
             
@@ -121,10 +123,12 @@ class InstagramChecker():
                 "verify_status": verify_status
             })
 
+        print()
+
         return following_usernames
 
     def get_followers(self):
-        print("Getting people that are following \"" + self.target_profile_username + "\"")
+        print("Getting people that are following \"" + self.target_profile_username + "\"...")
 
         # get number of followers
         num_of_followers = int(self.driver.find_elements_by_css_selector("span[class='_ac2a']")[1].text)
@@ -138,7 +142,7 @@ class InstagramChecker():
         followers_usernames = list()
 
         for i in range(0, num_of_followers):
-            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/div/a/span/div").text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/span/a/span/div").text.split("\n")
 
             username = username_and_verify_status[0]
 
@@ -159,6 +163,7 @@ class InstagramChecker():
                 "verify_status": verify_status
             })
 
+        print()
 
         return followers_usernames
 
@@ -180,8 +185,7 @@ class InstagramChecker():
 
     # TODO: refactor
     def create_ratio_sorted_csv(self, result_list):
-        print("Creating ratio sorted csv file")
-        print()
+        print("Creating ratio sorted csv file...\n")
 
         for user in result_list:
             print(user["username"])
@@ -271,7 +275,7 @@ class InstagramChecker():
         df = pd.DataFrame(sorted_data)
         df.to_csv(csv_file_path, sep=",", index=False)
 
-        print(f"CSV results are located here: {csv_file_path}")
+        print(f"\nCSV results are located here: {csv_file_path}")
 
         # create pickle for df
         dir_name = "pickles/"
@@ -307,8 +311,7 @@ def put_results_in_file(result_list, fmt_amts_str):
 
     results_file.close()
 
-    print(f"Text results are located here: {text_file_path}")
-    print()
+    print(f"Text results are located here: {text_file_path}\n")
 
 def print_results_to_console(l, fmt_amts_str):
     print(fmt_amts_str.format("Username", "Profile Link", "Display Name", "Verify Status"))
@@ -349,8 +352,7 @@ def use_pickle(sort_by_column):
 
     df.to_csv(csv_file_path, sep=",", index=False)
 
-    print(f"CSV results are located here: {csv_file_path}")
-    print()
+    print(f"CSV results are located here: {csv_file_path}\n")
 
 if __name__ == "__main__":
     logging.info("Started")
@@ -367,6 +369,7 @@ if __name__ == "__main__":
     column_to_sort_by = "followers"
     if use_pickle_flag:
         use_pickle(column_to_sort_by)
+        logging.info("Completed")
         exit()
     
     ic = InstagramChecker()
@@ -385,6 +388,8 @@ if __name__ == "__main__":
         put_results_in_file(result_list, fmt_amts_str)
         # print_results_to_console(result_list, fmt_amts_str)
 
-        print("Done.\n")
+        print("Done\n")
 
     ic.close_driver()
+    
+    logging.info("Completed")

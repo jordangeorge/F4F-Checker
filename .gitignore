@@ -10,6 +10,7 @@ recordings
 pickles
 status.log
 
+# might delete anything under this line
 error.txt
 
 checker2.py

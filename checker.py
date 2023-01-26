@@ -32,8 +32,18 @@ class InstagramChecker():
     def login(self):
         print("Logging in")
 
+        # TODO: test and handle appropriately
+        # happens when i turn vpn off
         # go to instagram
-        self.driver.get(self.url)
+        try:
+            self.driver.get(self.url)
+        except:
+            # print(e)
+            output = f"Error opening ({self.url})\n"
+            print(output)
+            logging.error(output)
+
+            return False
 
         # input username and password
         time.sleep(3)
@@ -43,11 +53,8 @@ class InstagramChecker():
         # click login button
         self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='_ab8w  _ab94 _ab99 _ab9f _ab9m _ab9p _abcm']"))).click()
         
+        # looking for alerts (red text) on the login page that will not allow user to login
         time.sleep(5)
-        # Looking for alerts such as "Espera unos minutos antes de volver a intentarlo."
-        # This might happen if this program is used too much because there are too many
-        # hits from this IP.
-        # TODO: Should be back again in -- hours.
         try:
             alert = self.driver.find_element_by_css_selector("div[class='_ab2z']")
             print(f"Alert found: {alert.text}\nExiting program.\n")
@@ -57,7 +64,20 @@ class InstagramChecker():
             print("No alert found")
             pass
 
+        # if page is asking for 2FA code
+        self.wait = WebDriverWait(self.driver, 15)
+        try:
+            mfa_text = self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/section/main/div/div/div[1]/div[2]/div"))).text
+            if "Ingresa el código que enviamos al número que termina en" in mfa_text or "Enter the code we sent to your number ending in" in mfa_text:
+                print(f"\nThe page is displaying \"{mfa_text}\" This means that two-factor authentication is not disabled. Please disable two-factor authentication at https://www.instagram.com/accounts/two_factor_authentication/.\n\nExiting program.\n")
+                logging.error(f"Need to disable 2FA.")
+                return False
+        except:
+            print("2FA disabled")
+            pass
+
         # go to profile
+        self.wait = WebDriverWait(self.driver, 10)
         try:
             self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
         except:
@@ -73,6 +93,7 @@ class InstagramChecker():
     def scroll_through_dialog(self, dialog_ul_div_xpath, num):
         print("Scrolling")
 
+        # TODO: change to wait.until
         time.sleep(7)
         dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
         # dialog_ul_div = self.wait.until(EC.presence_of_element_located((By.XPATH, dialog_ul_div_xpath)))
@@ -373,9 +394,9 @@ if __name__ == "__main__":
         exit()
     
     ic = InstagramChecker()
-    no_alert_found = ic.login()
+    no_login_issue_found = ic.login()
 
-    if no_alert_found:
+    if no_login_issue_found:
         result_list = ic.get_comparisons()
         print()
 

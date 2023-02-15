@@ -9,9 +9,10 @@ The main use case is checking if average people you followed through a "follow f
 In other words, this shows you people you're following that aren't following you back. For most people this might mean seeing a lot of verified or influencer-like accounts. For profiles that are a lot more private and personal and only follow people that they know, this might mean seeing very useful information about who in their life has unfollowed them.
 
 ##### Use Details
+- Turn off VPN
 - This currently does not work with 2FA. Therefore, it must be turned off in the Privacy and Security section of Instagram settings before using, which can be found [here](https://www.instagram.com/accounts/two_factor_authentication/).
-- Install Google Chrome if it is not already installed.
-- View Google Chrome version for ChromeDriver by selecting "Chrome" in the menu bar. Then select "About Google Chrome".
+- Install Google Chrome if it is not already installed
+- View Google Chrome version for ChromeDriver by selecting "Chrome" in the menu bar. Then select "About Google Chrome"
 - Download the ChromeDriver version corresponding to the version of Chrome and OS [here](https://chromedriver.chromium.org/downloads)
 - Unzip the downloaded zip file
 - Download the repository

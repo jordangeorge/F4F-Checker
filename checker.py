@@ -33,20 +33,20 @@ class InstagramChecker():
         print("Logging in")
 
         # TODO: test and handle appropriately
-        # happens when i turn vpn off
+            # occurs when i turn vpn off
         # go to instagram
         try:
             self.driver.get(self.url)
-        except:
-            # print(e)
-            output = f"Error opening ({self.url})\n"
-            print(output)
-            logging.error(output)
+        except Exception as e:
+            print(e)
+
+            print(f"Unable to open {self.url}\nExiting program.\n")
+            logging.error(f"Unable to open {self.url}. Error: {e}")
 
             return False
 
         # input username and password
-        time.sleep(3)
+        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[class='_aa4b _add6 _ac4d']")))
         self.driver.find_element_by_name("username").send_keys(self.target_profile_username)
         self.driver.find_element_by_name("password").send_keys(os.getenv("INSTAGRAM_PASSWORD"))
         
@@ -64,9 +64,9 @@ class InstagramChecker():
             print("No alert found")
             pass
 
-        # if page is asking for 2FA code
-        self.wait = WebDriverWait(self.driver, 15)
+        # if next page is asking for 2FA code
         try:
+            self.wait = WebDriverWait(self.driver, 15)
             mfa_text = self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/section/main/div/div/div[1]/div[2]/div"))).text
             if "Ingresa el código que enviamos al número que termina en" in mfa_text or "Enter the code we sent to your number ending in" in mfa_text:
                 print(f"\nThe page is displaying \"{mfa_text}\" This means that two-factor authentication is not disabled. Please disable two-factor authentication at https://www.instagram.com/accounts/two_factor_authentication/.\n\nExiting program.\n")
@@ -76,15 +76,19 @@ class InstagramChecker():
             print("2FA disabled")
             pass
 
-        # go to profile
-        self.wait = WebDriverWait(self.driver, 10)
-        try:
-            self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
-        except:
-            # "Activar notificaciones" modal shows
-            self.driver.get(self.url + "/" + self.target_profile_username)
+        # # go to profile
+        # self.wait = WebDriverWait(self.driver, 10)
+        # try:
+        #     self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
+        # except:
+        #     # "Activar notificaciones" modal shows
+        #     # or
+        #     # "¿Guardar tu información de inicio de sesión?" modal shows
+        #     self.driver.get(self.url + "/" + self.target_profile_username)
 
-        time.sleep(5)
+        # go to profile
+        time.sleep(2)
+        self.driver.get(self.url + "/" + self.target_profile_username)
 
         print("Login successful\n")
 
@@ -113,9 +117,7 @@ class InstagramChecker():
         time.sleep(4)
         num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text)
 
-        # TODO: change xpath
         # click on following dialog
-        time.sleep(4)
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
         
         self.scroll_through_dialog("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]", num_of_following)
@@ -123,7 +125,7 @@ class InstagramChecker():
         following_usernames = list()
 
         for i in range(0, num_of_following):
-            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/span/a/span/div").text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/div/span/a/span/div").text.split("\n")
 
             username = username_and_verify_status[0]
             
@@ -163,7 +165,7 @@ class InstagramChecker():
         followers_usernames = list()
 
         for i in range(0, num_of_followers):
-            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/span/a/span/div").text.split("\n")
+            username_and_verify_status = self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div["+str(i+1)+"]/div[2]/div[1]/div/div/div/span/a/span/div").text.split("\n")
 
             username = username_and_verify_status[0]
 
@@ -209,7 +211,7 @@ class InstagramChecker():
         print("Creating ratio sorted csv file...\n")
 
         for user in result_list:
-            print(user["username"])
+            print("Profile:", user["username"])
 
             # go to profile
             self.driver.get(self.url + "/" + user["username"])
@@ -219,11 +221,9 @@ class InstagramChecker():
             # get number of followers
             followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
             
-            # print(followers_string)
-
             followers_int = 0
             if "mil" in followers_string:
-                # is , being registered as . at all?
+                # is , being registered as . at all for different countries?
                 just_numbers = followers_string.split(" ")[0]
                 replace_comma = just_numbers.replace(",", ".")
                 convert_to_float = float(replace_comma)
@@ -240,8 +240,6 @@ class InstagramChecker():
                 multiply = convert_to_float
                 followers_int = int(multiply)
 
-            # print(followers_int)
-
             # add to dict
             user["followers"] = followers_int
 
@@ -250,8 +248,6 @@ class InstagramChecker():
             # get number of following
             following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text
             
-            # print(following_string)
-
             following_int = 0
             if "mil" in following_string:
                 # is , being registered as . at all?
@@ -271,8 +267,6 @@ class InstagramChecker():
                 multiply = convert_to_float 
                 following_int = int(multiply)
 
-            # print(following_int)
-
             # add to dict
             user["following"] = following_int
 
@@ -283,7 +277,6 @@ class InstagramChecker():
 
         # sort by ratio
         sorted_data = sorted(result_list, key=itemgetter("ratio"), reverse=True)
-        # print(sorted_data)
 
         # create csv file
         dir_name = "./results/csv/"

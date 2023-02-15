@@ -54,7 +54,7 @@ class InstagramChecker():
         self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='_ab8w  _ab94 _ab99 _ab9f _ab9m _ab9p _abcm']"))).click()
         
         # looking for alerts (red text) on the login page that will not allow user to login
-        time.sleep(5)
+        time.sleep(3)
         try:
             alert = self.driver.find_element_by_css_selector("div[class='_ab2z']")
             print(f"Alert found: {alert.text}\nExiting program.\n")
@@ -87,7 +87,6 @@ class InstagramChecker():
         #     self.driver.get(self.url + "/" + self.target_profile_username)
 
         # go to profile
-        time.sleep(2)
         self.driver.get(self.url + "/" + self.target_profile_username)
 
         print("Login successful\n")
@@ -97,10 +96,8 @@ class InstagramChecker():
     def scroll_through_dialog(self, dialog_ul_div_xpath, num):
         print("Scrolling")
 
-        # TODO: change to wait.until
-        time.sleep(7)
+        time.sleep(4)
         dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
-        # dialog_ul_div = self.wait.until(EC.presence_of_element_located((By.XPATH, dialog_ul_div_xpath)))
 
         li_num = 0
         while li_num < num:
@@ -114,7 +111,6 @@ class InstagramChecker():
         print("Getting people \"" + self.target_profile_username + "\" is following...")
 
         # get number of following
-        time.sleep(4)
         num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text)
 
         # click on following dialog
@@ -157,7 +153,6 @@ class InstagramChecker():
         num_of_followers = int(self.driver.find_elements_by_css_selector("span[class='_ac2a']")[1].text)
 
         # click on followers dialog
-        time.sleep(1)
         self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[2]/section/main/div/header/section/ul/li[2]/a").click()
 
         self.scroll_through_dialog("/html/body/div[2]/div/div/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]", num_of_followers)

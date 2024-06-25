@@ -27,7 +27,7 @@ In other words, this shows you people you're following that aren't following you
       - `python3 -m venv f4f_venv`
     - Activate virtual environment
       - `source f4f_venv/bin/activate`
-    - Put installed packages into requirements.txt file
+    - Install packages from the requirements.txt file in the local environment
       - `python3 -m pip install -r requirements.txt`
 - Run with `python3 checker.py`
 - Deactivate the virtual environment when done using the program

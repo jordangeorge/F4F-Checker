@@ -28,6 +28,14 @@ load_dotenv()
 
 class InstagramChecker():
     def __init__(self):
+        if os.getenv("INSTAGRAM_USERNAME") is None:
+            print("INSTAGRAM_USERNAME is not set")
+            exit()
+        if os.getenv("INSTAGRAM_PASSWORD") is None:
+            print("INSTAGRAM_PASSWORD is not set")
+            exit()
+
+
         # Configure Chrome options to use Chrome for Testing
         chrome_options = Options()
         chrome_options.binary_location = "./chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
@@ -301,16 +309,26 @@ class InstagramChecker():
 
         following_usernames = list()
 
-        # pause_for_inspection()
-
         for i in range(0, items_to_process):
             position = str(i+1)
 
-            username_and_display_name = self.driver.find_element(By.XPATH,
-                "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-                +position+
-                "]/div/div/div/div[2]/div/div"
-                ).text.split("\n")
+            print(f"{position=}")
+
+            try:
+                # x=self.driver.find_element(By.XPATH,
+                #     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+                #     +position+
+                #     "]/div/div/div/div[2]/div/div"
+                #     )
+                # print(f"{x=}")
+
+                username_and_display_name = self.driver.find_element(By.XPATH,
+                    "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+                    +position+
+                    "]/div/div/div/div[2]/div/div"
+                    ).text.split("\n")
+            except:
+                username_and_display_name = ["-", "-"]
 
             print(f"{username_and_display_name=}")
 
@@ -321,14 +339,31 @@ class InstagramChecker():
             except:
                 display_name = "-"
 
-            try:
-                verify_status = self.driver.find_element(By.XPATH,
-                "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-                +position+
-                "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title"
-                ).text
-            except:
-                verify_status = "-"
+            # try:
+            #     x=self.driver.find_element(By.XPATH,
+            #         "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+            #         +position+
+            #         "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title" 
+            #         ).text
+            #     print(f"{x=}") 
+
+            #     x=self.driver.find_element(By.XPATH,
+            #         "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+            #         +position+
+            #         "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title" 
+            #         ).text
+            #     print(f"{x=}") 
+
+            #     print("checking for verify status")
+            #     pause_for_inspection()
+                
+            #     verify_status = self.driver.find_element(By.XPATH,
+            #     "/html/body/div[5]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+            #     +position+
+            #     "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title"
+            #     ).text
+            # except:
+            verify_status = "-"
 
             following_usernames.append({
                 "username": username,
@@ -360,39 +395,48 @@ class InstagramChecker():
                 raise
 
         # click on followers dialog
-        self.driver.find_element(By.XPATH, "/html/body/div[2]/div/div/div[2]/div/div/div/div[1]/div[1]/div[2]/div[2]/section/main/div/header/section/ul/li[2]/a").click()
+        self.driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div/div[1]/div[2]/div[1]/section/main/div/div/header/div/section[2]/div/div[3]/div[2]/a").click()
 
-        self.scroll_through_dialog(
-            "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]",
+        actual_count = self.scroll_through_dialog(
+            "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]",
             num_of_followers,
             "x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xa49m3k xqeqjp1 x2hbi6w x13fuv20 xu3j5b3 x1q0q8m5 x26u7qi x972fbf xcfux6l x1qhh985 xm0m39n x9f619 x1ypdohk xdl72j9 x2lah0s xe8uvvx xdj266r x11i5rnm xat24cr x1mh8g0r x2lwn1j xeuugli xexx8yu x4uap5 x18d9i69 xkhd6sd x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x1q0g3np x87ps6o x1lku1pv x1a2a7pz xh8yej3 x193iq5w x1lliihq x1dm5mii x16mil14 xiojian x1yutycm")
 
+        # Use the actual count found instead of the expected count
+        items_to_process = min(actual_count, num_of_followers)
+        print(f"Processing {items_to_process} items...")
+
         followers_usernames = list()
 
-        for i in range(0, num_of_followers):
+        for i in range(0, items_to_process):
             position = str(i+1)
 
-            username_and_verify_status = self.driver.find_element(By.XPATH,
-                "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div["
-                +position+
-                "]/div/div/div/div[2]/div/div/span[1]/span/div/div/div/a/span/div"
-                ).text.split("\n")
-
-            username = username_and_verify_status[0]
-
             try:
-                verify_status = username_and_verify_status[1]
-            except:
-                verify_status = "-"
-
-            try:
-                display_name = self.driver.find_element(By.XPATH,
-                    "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div["
+                username_and_display_name = self.driver.find_element(By.XPATH,
+                    "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
-                    "]/div/div/div/div[2]/div/div/span[2]/span"
-                    ).text
+                    "]/div/div/div/div[2]/div/div"
+                    ).text.split("\n")
+            except:
+                username_and_display_name = ["-", "-"]
+
+            print(f"{username_and_display_name=}")
+
+            username = username_and_display_name[0]
+            
+            try:
+                display_name = username_and_display_name[1]
             except:
                 display_name = "-"
+
+            try:
+                verify_status = self.driver.find_element(By.XPATH,
+                "/html/body/div[5]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+                +position+
+                "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title"
+                ).text
+            except:
+                verify_status = "-"
 
             followers_usernames.append({
                 "username": username,
@@ -406,18 +450,32 @@ class InstagramChecker():
         return followers_usernames
 
     def get_comparisons(self):
+        # Wait for page to be fully loaded
+        time.sleep(2)
+
         following_usernames = self.get_following()
-        self.driver.find_element(By.XPATH, "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button").click() # close dialog window
+        self.driver.find_element(
+            By.XPATH,
+            "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button"
+            ).click() # close dialog window
         followers_usernames = self.get_followers()
 
         result_list = list()
 
         for i in range(len(following_usernames)):
             for j in range(len(followers_usernames)):
+                
+                if following_usernames[i]["username"] == "-" and following_usernames[i]["display_name"] == "-":
+                    continue
+                if followers_usernames[j]["username"] == "-" and followers_usernames[j]["display_name"] == "-":
+                    continue
+
                 if following_usernames[i]["username"] == followers_usernames[j]["username"]:
                     break
                 elif following_usernames[i]["username"] != followers_usernames[j]["username"] and j == len(followers_usernames)-1:
                     result_list.append(following_usernames[i])
+
+        print(f"result_list: {result_list}")
 
         return result_list
 
@@ -499,7 +557,7 @@ class InstagramChecker():
             os.mkdir(dir_name)
 
         current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        csv_file_path = dir_name + "/results_" + current_time + ".csv"
+        csv_file_path = dir_name + "results_" + current_time + ".csv"
         
         df = pd.DataFrame(sorted_data)
         df.to_csv(csv_file_path, sep=",", index=False)

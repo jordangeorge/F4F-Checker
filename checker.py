@@ -553,8 +553,7 @@ class InstagramChecker():
 
         # create csv file
         dir_name = "./results/csv/"
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+        create_dir_if_it_does_not_exist(dir_name)
 
         current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         csv_file_path = dir_name + "results_" + current_time + ".csv"
@@ -566,8 +565,7 @@ class InstagramChecker():
 
         # create pickle for df
         dir_name = "pickles/"
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+        create_dir_if_it_does_not_exist(dir_name)
         pickle_file_path = f"{dir_name}data_{current_time}.pkl"
         df.to_pickle(pickle_file_path)
 
@@ -579,8 +577,7 @@ class InstagramChecker():
 
 def put_results_in_file(result_list: list, fmt_amts_str: str) -> None:
     dir_name = "./results/text"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     text_file_path = dir_name + "/results_" + current_time + ".txt"
@@ -624,8 +621,7 @@ def use_pickle(sort_by_column):
     print(f"Creating {sort_by_column} sorted csv file...")
 
     dir_name = "pickles"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     # get latest pickle file
     files = os.listdir(dir_name)
@@ -643,8 +639,7 @@ def use_pickle(sort_by_column):
 
     # create csv file
     dir_name = "./results/csv"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     csv_file_path = dir_name + "/results_" + current_time + ".csv"
@@ -668,12 +663,15 @@ def pause_for_inspection():
     print("="*80)
     input()
 
+def create_dir_if_it_does_not_exist(dir_name):
+    if not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
+
 if __name__ == "__main__":
     logging.info("Started")
 
     dir_name = "results"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     print()
 

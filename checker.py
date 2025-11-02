@@ -426,6 +426,31 @@ class InstagramChecker():
 
         return result_list
 
+    def _get_count(self, class_name, position):
+        category_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 
+                            f"span[class='{class_name}']"
+                            )))[position].text
+        
+        category_int = 0
+        if "mil" in category_string:
+            # todo: is , being registered as . at all for different countries?
+            just_numbers = category_string.split(" ")[0]
+            replace_comma = just_numbers.replace(",", ".")
+            convert_to_float = float(replace_comma)
+            multiply = convert_to_float * 1000
+            category_int = int(multiply)
+        elif "M" in category_string:
+            just_numbers = category_string.strip("M")
+            replace_comma = just_numbers.replace(",", ".")
+            convert_to_float = float(replace_comma)
+            multiply = convert_to_float * 1000000
+            category_int = int(multiply)
+        else:
+            convert_to_float = float(category_string)
+            category_int = int(convert_to_float)
+
+        return category_int
+
     # TODO: refactor
     def create_ratio_sorted_csv(self, result_list):
         print("Creating ratio sorted csv file...\n")
@@ -436,59 +461,17 @@ class InstagramChecker():
             # go to profile
             self.driver.get(self.url + "/" + user["username"])
             
-            print("Getting followers")
-
             # get number of followers
-            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[1].text
-            
-            # fix: make code DRY by creating a function to convert the string to an integer
-            followers_int = 0
-            if "mil" in followers_string:
-                # todo: is , being registered as . at all for different countries?
-                just_numbers = followers_string.split(" ")[0]
-                replace_comma = just_numbers.replace(",", ".")
-                convert_to_float = float(replace_comma)
-                multiply = convert_to_float * 1000
-                followers_int = int(multiply)
-            elif "M" in followers_string:
-                just_numbers = followers_string.strip("M")
-                replace_comma = just_numbers.replace(",", ".")
-                convert_to_float = float(replace_comma)
-                multiply = convert_to_float * 1000000
-                followers_int = int(multiply)
-            else:
-                convert_to_float = float(followers_string)
-                followers_int = int(convert_to_float)
-
-            # add to dict
+            print("Getting followers")
+            followers_int = self._get_count( "span[class='x5n08af x1s688f']", 1 )
             user["followers"] = followers_int
 
-            print("Getting following")
-
             # get number of following
-            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[2].text
-            
-            following_int = 0
-            if "mil" in following_string:
-                # todo: is , being registered as . at all?
-                just_numbers = following_string.split(" ")[0]
-                replace_comma = just_numbers.replace(",", ".")
-                convert_to_float = float(replace_comma)
-                multiply = convert_to_float * 1000
-                following_int = int(multiply)
-            elif "M" in following_string:
-                just_numbers = following_string.strip("M")
-                replace_comma = just_numbers.replace(",", ".")
-                convert_to_float = float(replace_comma)
-                multiply = convert_to_float * 1000000
-                following_int = int(multiply)
-            else:
-                convert_to_float = float(following_string)
-                following_int = int(convert_to_float)
-
-            # add to dict
+            print("Getting following")
+            following_int = self._get_count( "span[class='x5n08af x1s688f']", 2 )
             user["following"] = following_int
             
+            # anticipate division by zero
             if following_int == 0:
                 user["ratio"] = followers_int
             else:

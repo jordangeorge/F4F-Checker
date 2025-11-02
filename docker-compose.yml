@@ -1,0 +1,19 @@
+services:
+  f4f-checker:
+    build: .
+    container_name: f4f-checker
+    environment:
+      - INSTAGRAM_USERNAME=${INSTAGRAM_USERNAME}
+      - INSTAGRAM_PASSWORD=${INSTAGRAM_PASSWORD}
+      - RUNNING_IN_DOCKER=true
+      - DISPLAY=:99
+    volumes:
+      # Mount results directories to persist output
+      - ./results:/app/results
+      - ./pickles:/app/pickles
+      - ./status.log:/app/status.log
+    # Use shm_size to prevent Chrome crashes
+    shm_size: '2gb'
+    # Run with X virtual framebuffer for Chrome
+    command: sh -c "Xvfb :99 -screen 0 1920x1080x24 & sleep 2 && python checker.py"
+

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+chrome-mac-arm64/
+chromedriver
+pickles/
+results/
+recordings/
+notes/
+using nb/
+error.txt
+csvdata.csv
+unfollowlist.txt
+
+# Git
+.git/
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (keep the file structure but not the content)
+status.log
+

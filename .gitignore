@@ -11,6 +11,10 @@ status.log
 chrome-mac-arm64/
 venv/
 
+# Docker
+.dockerenv
+*.log
+
 # might delete anything under this line
 error.txt
 

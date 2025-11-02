@@ -122,7 +122,7 @@ class InstagramChecker():
 
         return True
 
-    def scroll_through_dialog(self, dialog_ul_div_xpath, num, class_name):
+    def _scroll_through_dialog(self, dialog_ul_div_xpath, num, class_name):
         print("Scrolling")
 
         time.sleep(3)
@@ -207,7 +207,7 @@ class InstagramChecker():
         print(f"Done scrolling. Found {li_num} items out of {num} target")
         return li_num
 
-    def get_following(self):
+    def _get_following(self):
         print("Getting people \"" + self.target_profile_username + "\" is following...")
 
         # Wait for page to be fully loaded
@@ -215,10 +215,8 @@ class InstagramChecker():
 
         # get number of following
         try:
-            # Try finding all links that contain '/following'
             following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
             following_text = following_link.text
-            # Extract number from text like "123 following"
             num_of_following = int(re.search(r'[\d,]+', following_text.replace(',', '')).group())
         except Exception as e:
             print(f"Error getting following count: {e}")
@@ -230,7 +228,7 @@ class InstagramChecker():
         # Wait for dialog to open
         time.sleep(2)
         
-        actual_count = self.scroll_through_dialog(
+        actual_count = self._scroll_through_dialog(
             "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]",
             num_of_following,
             "x1dm5mii x16mil14 xiojian x1yutycm x1lliihq x193iq5w xh8yej3"
@@ -336,15 +334,13 @@ class InstagramChecker():
 
         return following_usernames
 
-    def get_followers(self):
+    def _get_followers(self):
         print("Getting people that are following \"" + self.target_profile_username + "\"...")
 
         # get number of followers
         try:
-            # Try finding the followers link
             followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
             followers_text = followers_link.text
-            # Extract number from text like "123 followers"
             num_of_followers = int(re.search(r'[\d,]+', followers_text.replace(',', '')).group())
         except Exception as e:
             print(f"Error getting followers count: {e}")
@@ -353,7 +349,7 @@ class InstagramChecker():
         # click on followers dialog
         self.driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div/div[1]/div[2]/div[1]/section/main/div/div/header/div/section[2]/div/div[3]/div[2]/a").click()
 
-        actual_count = self.scroll_through_dialog(
+        actual_count = self._scroll_through_dialog(
             "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]",
             num_of_followers,
             "x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xa49m3k xqeqjp1 x2hbi6w x13fuv20 xu3j5b3 x1q0q8m5 x26u7qi x972fbf xcfux6l x1qhh985 xm0m39n x9f619 x1ypdohk xdl72j9 x2lah0s xe8uvvx xdj266r x11i5rnm xat24cr x1mh8g0r x2lwn1j xeuugli xexx8yu x4uap5 x18d9i69 xkhd6sd x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x1q0g3np x87ps6o x1lku1pv x1a2a7pz xh8yej3 x193iq5w x1lliihq x1dm5mii x16mil14 xiojian x1yutycm")
@@ -407,12 +403,12 @@ class InstagramChecker():
         # Wait for page to be fully loaded
         time.sleep(2)
 
-        following_usernames = self.get_following()
+        following_usernames = self._get_following()
         self.driver.find_element(
             By.XPATH,
             "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button"
             ).click() # close dialog window
-        followers_usernames = self.get_followers()
+        followers_usernames = self._get_followers()
 
         result_list = list()
 

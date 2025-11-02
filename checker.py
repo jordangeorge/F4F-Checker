@@ -426,32 +426,40 @@ class InstagramChecker():
 
         return result_list
 
-    def _get_count(self, class_name, position):
-        category_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 
-                            f"span[class='{class_name}']"
-                            )))[position].text
+    def _get_count(self, position):
+        """
+        Get a count value from Instagram page and parse it to integer.
+        Handles formats like: '1,234', '1.5K', '2.3M', '5 mil', '1.2B'
         
-        category_int = 0
-        if "mil" in category_string:
-            # todo: is , being registered as . at all for different countries?
-            just_numbers = category_string.split(" ")[0]
-            replace_comma = just_numbers.replace(",", ".")
-            convert_to_float = float(replace_comma)
-            multiply = convert_to_float * 1000
-            category_int = int(multiply)
-        elif "M" in category_string:
-            just_numbers = category_string.strip("M")
-            replace_comma = just_numbers.replace(",", ".")
-            convert_to_float = float(replace_comma)
-            multiply = convert_to_float * 1000000
-            category_int = int(multiply)
-        else:
-            convert_to_float = float(category_string)
-            category_int = int(convert_to_float)
+        Args:
+            position: Index of the element in the found elements list
+            
+        Returns:
+            Integer value of the count
+        """
+        category_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, f"span[class='x5n08af x1s688f']")))[position].text
+        
+        # Define multipliers for different suffixes
+        multipliers = {
+            'k': 1000, # thousand, english
+            'mil': 1000, # thousand, spanish
+            'm': 1000000, # million, english
+            'm': 1000000, # million, spanish
+            'mm': 1000000000, # billion, english
+            'b': 1000000000, # billion, spanish
+        }
+        
+        match = re.match(r'^([0-9.,]+)\s*([a-zA-Z]*)$', category_string.strip())
+        
+        if not match:
+            print(f"Warning: Could not parse count string: '{category_string}'")
+            return 0
+        
+        number_str, suffix = match.groups()
+        number = float(number_str.replace(',', '.'))
+        multiplier = multipliers.get(suffix.lower(), 1)
+        return int(number * multiplier)
 
-        return category_int
-
-    # TODO: refactor
     def create_ratio_sorted_csv(self, result_list):
         print("Creating ratio sorted csv file...\n")
 
@@ -463,12 +471,12 @@ class InstagramChecker():
             
             # get number of followers
             print("Getting followers")
-            followers_int = self._get_count( "span[class='x5n08af x1s688f']", 1 )
+            followers_int = self._get_count(1)
             user["followers"] = followers_int
 
             # get number of following
             print("Getting following")
-            following_int = self._get_count( "span[class='x5n08af x1s688f']", 2 )
+            following_int = self._get_count(2)
             user["following"] = following_int
             
             # anticipate division by zero

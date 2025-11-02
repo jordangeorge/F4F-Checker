@@ -35,7 +35,6 @@ class InstagramChecker():
             print("INSTAGRAM_PASSWORD is not set")
             exit()
 
-
         # Configure Chrome options to use Chrome for Testing
         chrome_options = Options()
         chrome_options.binary_location = "./chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
@@ -71,7 +70,8 @@ class InstagramChecker():
             return False
         
         # input username and password
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[class='_aa4b _add6 _ac4d _ap35']")))
+        self.wait.until(EC.presence_of_element_located((By.NAME, "username")))
+        self.wait.until(EC.presence_of_element_located((By.NAME, "password")))
 
         self.driver.find_element(By.NAME, "username").send_keys(self.target_profile_username)
         self.driver.find_element(By.NAME, "password").send_keys(os.getenv("INSTAGRAM_PASSWORD"))
@@ -115,16 +115,6 @@ class InstagramChecker():
             print("2FA disabled")
             pass
 
-        # # go to profile
-        # self.wait = WebDriverWait(self.driver, 10)
-        # try:
-        #     self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
-        # except:
-        #     # "Activar notificaciones" modal shows
-        #     # or
-        #     # "¿Guardar tu información de inicio de sesión?" modal shows
-        #     self.driver.get(self.url + "/" + self.target_profile_username)
-
         # go to profile
         self.driver.get(self.url + "/" + self.target_profile_username)
 
@@ -147,44 +137,6 @@ class InstagramChecker():
         except:
             pass
         
-        # Method 2: Find div with role="dialog" and its scrollable container
-        if not dialog_ul_div:
-            try:
-                # Find the dialog first
-                dialog = self.driver.find_element(By.CSS_SELECTOR, "div[role='dialog']")
-                # Find the scrollable div inside the dialog
-                dialog_ul_div = dialog.find_element(By.CSS_SELECTOR, "div[style*='overflow']")
-                print("Found dialog using role='dialog'")
-            except:
-                pass
-        
-        # Method 3: Find any div with overflow-y: auto or scroll
-        if not dialog_ul_div:
-            try:
-                dialog_ul_div = self.driver.find_element(By.XPATH, "//div[contains(@style, 'overflow-y')]")
-                print("Found dialog using overflow-y")
-            except:
-                pass
-        
-        # Method 4: Try to find a div that can scroll
-        if not dialog_ul_div:
-            try:
-                # Execute JavaScript to find scrollable divs
-                scrollable_div = self.driver.execute_script("""
-                    var divs = document.querySelectorAll('div[role="dialog"] div');
-                    for (var i = 0; i < divs.length; i++) {
-                        if (divs[i].scrollHeight > divs[i].clientHeight) {
-                            return divs[i];
-                        }
-                    }
-                    return null;
-                """)
-                if scrollable_div:
-                    dialog_ul_div = scrollable_div
-                    print("Found dialog using JavaScript")
-            except:
-                pass
-        
         if not dialog_ul_div:
             print("ERROR: Could not find scrollable dialog")
             return 0
@@ -205,7 +157,7 @@ class InstagramChecker():
             pass
         
         while li_num < num and scroll_attempts < max_scrolls:
-            # Scroll using JavaScript - more reliable
+            # Scroll using JavaScript
             try:
                 # Method 1: Scroll the element itself
                 scroll_height = self.driver.execute_script("return arguments[0].scrollHeight", dialog_ul_div)
@@ -220,26 +172,11 @@ class InstagramChecker():
             except Exception as e:
                 print(f"Scroll error: {e}")
             
-            time.sleep(2)  # Give it more time to load
+            time.sleep(1)  # Give it more time to load
             
-            # Count items using multiple methods
-            try:
-                # Count all links in the dialog that look like profile links
-                items = self.driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] a[href*='/']")
-                # Filter to only count unique profile links (not buttons, etc)
-                filtered_items = []
-                for item in items:
-                    href = item.get_attribute('href')
-                    if href and '/p/' not in href and '/reel/' not in href:
-                        # Skip if it's a real profile link
-                        filtered_items.append(item)
-                li_num = len(filtered_items)
-            except:
-                try:
-                    # Fallback: just count all links
-                    li_num = len(self.driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] a"))
-                except:
-                    pass
+            # Count divs
+            items = self.driver.find_elements(By.CSS_SELECTOR, "div[class='x1qnrgzn x1cek8b2 xb10e19 x19rwo8q x1lliihq x193iq5w xh8yej3']")
+            li_num = len(items)
             
             scroll_attempts += 1
             
@@ -276,20 +213,16 @@ class InstagramChecker():
         # Wait for page to be fully loaded
         time.sleep(2)
 
-        # get number of following - try multiple approaches
+        # get number of following
         try:
-            # Try the old selector first
-            num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='html-span xdj266r x11i5rnm xat24cr x1mh8g0r xexx8yu x4uap5 x18d9i69 xkhd6sd x1hl2dhg x16tdsg8 x1vvkbs']")))[2].text)
-        except:
-            try:
-                # Try finding all links that contain '/following'
-                following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
-                following_text = following_link.text
-                # Extract number from text like "123 following"
-                num_of_following = int(re.search(r'[\d,]+', following_text.replace(',', '')).group())
-            except Exception as e:
-                print(f"Error getting following count: {e}")
-                raise
+            # Try finding all links that contain '/following'
+            following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
+            following_text = following_link.text
+            # Extract number from text like "123 following"
+            num_of_following = int(re.search(r'[\d,]+', following_text.replace(',', '')).group())
+        except Exception as e:
+            print(f"Error getting following count: {e}")
+            raise
 
         # click on following dialog
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
@@ -312,58 +245,85 @@ class InstagramChecker():
         for i in range(0, items_to_process):
             position = str(i+1)
 
-            print(f"{position=}")
-
             try:
-                # x=self.driver.find_element(By.XPATH,
-                #     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-                #     +position+
-                #     "]/div/div/div/div[2]/div/div"
-                #     )
-                # print(f"{x=}")
-
-                username_and_display_name = self.driver.find_element(By.XPATH,
+                user_info = self.driver.find_element(By.XPATH,
                     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
                     "]/div/div/div/div[2]/div/div"
                     ).text.split("\n")
             except:
-                username_and_display_name = ["-", "-"]
+                user_info = ["-", "-"]
 
-            print(f"{username_and_display_name=}")
-
-            username = username_and_display_name[0]
+            username = user_info[0]
             
             try:
-                display_name = username_and_display_name[1]
+                display_name = user_info[1]
             except:
                 display_name = "-"
 
-            # try:
-            #     x=self.driver.find_element(By.XPATH,
-            #         "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-            #         +position+
-            #         "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title" 
-            #         ).text
-            #     print(f"{x=}") 
+            print(f'{username=}')
 
-            #     x=self.driver.find_element(By.XPATH,
-            #         "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-            #         +position+
-            #         "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title" 
-            #         ).text
-            #     print(f"{x=}") 
-
-            #     print("checking for verify status")
-            #     pause_for_inspection()
-                
-            #     verify_status = self.driver.find_element(By.XPATH,
-            #     "/html/body/div[5]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-            #     +position+
-            #     "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title"
-            #     ).text
-            # except:
+            # Try multiple methods to find verification status
             verify_status = "-"
+            
+            try:
+                # First, get the user row element
+                user_row = self.driver.find_element(By.XPATH,
+                    f"/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div[{position}]"
+                )
+                
+                # Debug: Print the HTML structure for the first few users
+                if i < 3:
+                    print(f"\n=== DEBUG: HTML structure for user {username} (position {position}) ===")
+                    html_content = user_row.get_attribute('innerHTML')
+                    # Look for verification-related content
+                    if 'verif' in html_content.lower():
+                        print("Found 'verif' in HTML!")
+                        # Extract a snippet around it
+                        idx = html_content.lower().find('verif')
+                        print(html_content[max(0, idx-100):idx+100])
+                    else:
+                        print("No 'verif' found in HTML")
+                    print("=== END DEBUG ===\n")
+                
+                # Method 1: Look for SVG title with verification text
+                try:
+                    title_elements = user_row.find_elements(By.TAG_NAME, "title")
+                    for title_elem in title_elements:
+                        title_text = title_elem.get_attribute('textContent') or title_elem.text
+                        if title_text and ('verif' in title_text.lower()):
+                            verify_status = title_text
+                            print(f"✓ Found verification via title: {verify_status}")
+                            break
+                except Exception as e:
+                    print(f"Method 1 failed: {e}")
+                
+                # Method 2: Look for aria-label with verification
+                if verify_status == "-":
+                    try:
+                        verified_elements = user_row.find_elements(By.XPATH, ".//*[contains(@aria-label, 'erif')]")
+                        if verified_elements:
+                            verify_status = verified_elements[0].get_attribute('aria-label')
+                            print(f"✓ Found verification via aria-label: {verify_status}")
+                    except Exception as e:
+                        print(f"Method 2 failed: {e}")
+                
+                # Method 3: Look for specific verification SVG
+                if verify_status == "-":
+                    try:
+                        svg_elements = user_row.find_elements(By.TAG_NAME, "svg")
+                        for svg in svg_elements:
+                            aria_label = svg.get_attribute('aria-label')
+                            if aria_label and 'verif' in aria_label.lower():
+                                verify_status = aria_label
+                                print(f"✓ Found verification via SVG aria-label: {verify_status}")
+                                break
+                    except Exception as e:
+                        print(f"Method 3 failed: {e}")
+                        
+            except Exception as e:
+                print(f"Error checking verification for {username}: {e}")
+                verify_status = "-"
 
             following_usernames.append({
                 "username": username,
@@ -379,20 +339,16 @@ class InstagramChecker():
     def get_followers(self):
         print("Getting people that are following \"" + self.target_profile_username + "\"...")
 
-        # get number of followers - try multiple approaches
+        # get number of followers
         try:
-            # Try the old selector first
-            num_of_followers = int(self.driver.find_elements(By.CSS_SELECTOR, "span[class='_ac2a']")[1].text)
-        except:
-            try:
-                # Try finding the followers link
-                followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
-                followers_text = followers_link.text
-                # Extract number from text like "123 followers"
-                num_of_followers = int(re.search(r'[\d,]+', followers_text.replace(',', '')).group())
-            except Exception as e:
-                print(f"Error getting followers count: {e}")
-                raise
+            # Try finding the followers link
+            followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
+            followers_text = followers_link.text
+            # Extract number from text like "123 followers"
+            num_of_followers = int(re.search(r'[\d,]+', followers_text.replace(',', '')).group())
+        except Exception as e:
+            print(f"Error getting followers count: {e}")
+            raise
 
         # click on followers dialog
         self.driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div/div[1]/div[2]/div[1]/section/main/div/div/header/div/section[2]/div/div[3]/div[2]/a").click()
@@ -412,20 +368,18 @@ class InstagramChecker():
             position = str(i+1)
 
             try:
-                username_and_display_name = self.driver.find_element(By.XPATH,
+                user_info_element = self.driver.find_element(By.XPATH,
                     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
                     "]/div/div/div/div[2]/div/div"
                     ).text.split("\n")
             except:
-                username_and_display_name = ["-", "-"]
+                user_info_element = ["-", "-"]
 
-            print(f"{username_and_display_name=}")
-
-            username = username_and_display_name[0]
+            username = user_info_element[0]
             
             try:
-                display_name = username_and_display_name[1]
+                display_name = user_info_element[1]
             except:
                 display_name = "-"
 
@@ -464,15 +418,12 @@ class InstagramChecker():
 
         for i in range(len(following_usernames)):
             for j in range(len(followers_usernames)):
+                iu = following_usernames[i]["username"] 
+                ju = followers_usernames[j]["username"]
                 
-                if following_usernames[i]["username"] == "-" and following_usernames[i]["display_name"] == "-":
-                    continue
-                if followers_usernames[j]["username"] == "-" and followers_usernames[j]["display_name"] == "-":
-                    continue
-
-                if following_usernames[i]["username"] == followers_usernames[j]["username"]:
+                if iu == ju:
                     break
-                elif following_usernames[i]["username"] != followers_usernames[j]["username"] and j == len(followers_usernames)-1:
+                elif iu != ju and j == len(followers_usernames)-1:
                     result_list.append(following_usernames[i])
 
         print(f"result_list: {result_list}")
@@ -492,8 +443,9 @@ class InstagramChecker():
             print("Getting followers")
 
             # get number of followers
-            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
+            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[1].text
             
+            # fix: make code DRY by creating a function to convert the string to an integer
             followers_int = 0
             if "mil" in followers_string:
                 # todo: is , being registered as . at all for different countries?
@@ -510,8 +462,7 @@ class InstagramChecker():
                 followers_int = int(multiply)
             else:
                 convert_to_float = float(followers_string)
-                multiply = convert_to_float
-                followers_int = int(multiply)
+                followers_int = int(convert_to_float)
 
             # add to dict
             user["followers"] = followers_int
@@ -519,7 +470,7 @@ class InstagramChecker():
             print("Getting following")
 
             # get number of following
-            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text
+            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[2].text
             
             following_int = 0
             if "mil" in following_string:
@@ -537,13 +488,15 @@ class InstagramChecker():
                 following_int = int(multiply)
             else:
                 convert_to_float = float(following_string)
-                multiply = convert_to_float 
-                following_int = int(multiply)
+                following_int = int(convert_to_float)
 
             # add to dict
             user["following"] = following_int
-
-            user["ratio"] = round(followers_int / following_int, 1)
+            
+            if following_int == 0:
+                user["ratio"] = followers_int
+            else:
+                user["ratio"] = round(followers_int / following_int, 1)
 
             print(f"follower:following ratio for \"{user['username']}\": {user['ratio']}")
             print("------------------------------")
@@ -559,7 +512,7 @@ class InstagramChecker():
         csv_file_path = dir_name + "results_" + current_time + ".csv"
         
         df = pd.DataFrame(sorted_data)
-        df.to_csv(csv_file_path, sep=",", index=False)
+        df.to_csv(csv_file_path, sep=",", index=False, encoding='utf-8')
 
         print(f"\nCSV results are located here: {csv_file_path}")
 
@@ -582,7 +535,7 @@ def put_results_in_file(result_list: list, fmt_amts_str: str) -> None:
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     text_file_path = dir_name + "/results_" + current_time + ".txt"
 
-    results_file = open(text_file_path, "a")
+    results_file = open(text_file_path, "a", encoding='utf-8')
 
     results_file.write(str(fmt_amts_str.format(
         "Username",
@@ -648,17 +601,10 @@ def use_pickle(sort_by_column):
 
     print(f"CSV results are located here: {csv_file_path}\n")
 
-
 # PAUSE FOR INSPECTION - Browser will stay open to allow for inspection
 def pause_for_inspection():
     print("\n" + "="*80)
     print("BROWSER IS NOW PAUSED FOR INSPECTION")
-    print("The following dialog should be open.")
-    print("You can:")
-    print("  1. Right-click any element and select 'Inspect' to see its XPath")
-    print("  2. Find the scrollable container in the dialog")
-    print("  3. Note the XPath of the scrollable div")
-    print()
     print("Press ENTER in the terminal when you're done inspecting...")
     print("="*80)
     input()

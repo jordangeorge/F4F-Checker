@@ -35,17 +35,34 @@ class InstagramChecker():
             print("INSTAGRAM_PASSWORD is not set")
             exit()
 
-        # Configure Chrome options to use Chrome for Testing
+        # Configure Chrome options
         chrome_options = Options()
-        chrome_options.binary_location = "./chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
         
-        # Add arguments to help Chrome start properly
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-gpu")
+        # Check if running in Docker (environment variable or Chrome path detection)
+        is_docker = os.path.exists("/.dockerenv") or os.getenv("RUNNING_IN_DOCKER") == "true"
         
-        # Create Chrome service with the chromedriver
-        service = Service(executable_path="./chromedriver")
+        if is_docker:
+            # Docker configuration - use system Chrome
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--window-size=1920,1080")
+            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option('useAutomationExtension', False)
+            
+            # Use system chromedriver in Docker
+            service = Service(executable_path="/usr/local/bin/chromedriver")
+        else:
+            # Local macOS configuration - use Chrome for Testing
+            chrome_options.binary_location = "./chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-gpu")
+            
+            # Use local chromedriver
+            service = Service(executable_path="./chromedriver")
         
         # Create the webdriver instance
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -58,7 +75,7 @@ class InstagramChecker():
 
         # TODO: test and handle appropriately
             # occurs when i turn vpn off
-        # go to instagram
+        # Go to instagram
         try:
             self.driver.get(self.url)
         except Exception as e:
@@ -69,14 +86,14 @@ class InstagramChecker():
 
             return False
         
-        # input username and password
+        # Input username and password
         self.wait.until(EC.presence_of_element_located((By.NAME, "username")))
         self.wait.until(EC.presence_of_element_located((By.NAME, "password")))
 
         self.driver.find_element(By.NAME, "username").send_keys(self.target_profile_username)
         self.driver.find_element(By.NAME, "password").send_keys(os.getenv("INSTAGRAM_PASSWORD"))
         
-        # click login button - use a more reliable selector
+        # Click login button - use a more reliable selector
         # Try to find the button by type and text content
         try:
             # First, try to find by button type
@@ -92,7 +109,7 @@ class InstagramChecker():
                 print("Using Enter key to submit form...")
                 self.driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
         
-        # looking for alerts (red text) on the login page that will not allow user to login
+        # Looking for alerts (red text) on the login page that will not allow user to login
         time.sleep(2)  # Wait for potential alert to appear
         try:
             alert = self.driver.find_element(By.CSS_SELECTOR, "div[class='_ab2z']")
@@ -103,7 +120,7 @@ class InstagramChecker():
             print("No alert found")
             pass
 
-        # if next page is asking for 2FA code
+        # If next page is asking for 2FA code
         try:
             self.wait = WebDriverWait(self.driver, 15)
             mfa_text = self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/section/main/div/div/div[1]/div[2]/div"))).text
@@ -115,7 +132,7 @@ class InstagramChecker():
             print("2FA disabled")
             pass
 
-        # go to profile
+        # Go to profile
         self.driver.get(self.url + "/" + self.target_profile_username)
 
         print("Login successful\n")
@@ -207,13 +224,78 @@ class InstagramChecker():
         print(f"Done scrolling. Found {li_num} items out of {num} target")
         return li_num
 
+    def _get_verify_status(self, username, position) -> str:
+        # Try multiple methods to find verification status
+        verify_status = "-"
+        
+        try:
+            # First, get the user row element
+            user_row = self.driver.find_element(By.XPATH,
+                f"/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div[{position}]"
+            )
+            
+            # # Debug: Print the HTML structure for the first few users
+            # if i < 3:
+            #     print(f"\n=== DEBUG: HTML structure for user {username} (position {position}) ===")
+            #     html_content = user_row.get_attribute('innerHTML')
+            #     # Look for verification-related content
+            #     if 'verif' in html_content.lower():
+            #         print("Found 'verif' in HTML!")
+            #         # Extract a snippet around it
+            #         idx = html_content.lower().find('verif')
+            #         print(html_content[max(0, idx-100):idx+100])
+            #     else:
+            #         print("No 'verif' found in HTML")
+            #     print("=== END DEBUG ===\n")
+            
+            # Method 1: Look for SVG title with verification text
+            try:
+                title_elements = user_row.find_elements(By.TAG_NAME, "title")
+                for title_elem in title_elements:
+                    title_text = title_elem.get_attribute('textContent') or title_elem.text
+                    if title_text and ('verif' in title_text.lower()):
+                        verify_status = title_text
+                        print(f"✓ Found verification via title: {verify_status}")
+                        break
+            except Exception as e:
+                print(f"Method 1 failed: {e}")
+            
+            # Method 2: Look for aria-label with verification
+            if verify_status == "-":
+                try:
+                    verified_elements = user_row.find_elements(By.XPATH, ".//*[contains(@aria-label, 'erif')]")
+                    if verified_elements:
+                        verify_status = verified_elements[0].get_attribute('aria-label')
+                        print(f"✓ Found verification via aria-label: {verify_status}")
+                except Exception as e:
+                    print(f"Method 2 failed: {e}")
+            
+            # Method 3: Look for specific verification SVG
+            if verify_status == "-":
+                try:
+                    svg_elements = user_row.find_elements(By.TAG_NAME, "svg")
+                    for svg in svg_elements:
+                        aria_label = svg.get_attribute('aria-label')
+                        if aria_label and 'verif' in aria_label.lower():
+                            verify_status = aria_label
+                            print(f"✓ Found verification via SVG aria-label: {verify_status}")
+                            break
+                except Exception as e:
+                    print(f"Method 3 failed: {e}")
+                    
+        except Exception as e:
+            print(f"Error checking verification for {username}: {e}")
+            verify_status = "-"
+        
+        return verify_status
+
     def _get_following(self):
         print("Getting people \"" + self.target_profile_username + "\" is following...")
 
         # Wait for page to be fully loaded
         time.sleep(2)
 
-        # get number of following
+        # Get number of following
         try:
             following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
             following_text = following_link.text
@@ -222,7 +304,7 @@ class InstagramChecker():
             print(f"Error getting following count: {e}")
             raise
 
-        # click on following dialog
+        # Click on following dialog
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
         
         # Wait for dialog to open
@@ -259,69 +341,7 @@ class InstagramChecker():
             except:
                 display_name = "-"
 
-            print(f'{username=}')
-
-            # Try multiple methods to find verification status
-            verify_status = "-"
-            
-            try:
-                # First, get the user row element
-                user_row = self.driver.find_element(By.XPATH,
-                    f"/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div[{position}]"
-                )
-                
-                # Debug: Print the HTML structure for the first few users
-                if i < 3:
-                    print(f"\n=== DEBUG: HTML structure for user {username} (position {position}) ===")
-                    html_content = user_row.get_attribute('innerHTML')
-                    # Look for verification-related content
-                    if 'verif' in html_content.lower():
-                        print("Found 'verif' in HTML!")
-                        # Extract a snippet around it
-                        idx = html_content.lower().find('verif')
-                        print(html_content[max(0, idx-100):idx+100])
-                    else:
-                        print("No 'verif' found in HTML")
-                    print("=== END DEBUG ===\n")
-                
-                # Method 1: Look for SVG title with verification text
-                try:
-                    title_elements = user_row.find_elements(By.TAG_NAME, "title")
-                    for title_elem in title_elements:
-                        title_text = title_elem.get_attribute('textContent') or title_elem.text
-                        if title_text and ('verif' in title_text.lower()):
-                            verify_status = title_text
-                            print(f"✓ Found verification via title: {verify_status}")
-                            break
-                except Exception as e:
-                    print(f"Method 1 failed: {e}")
-                
-                # Method 2: Look for aria-label with verification
-                if verify_status == "-":
-                    try:
-                        verified_elements = user_row.find_elements(By.XPATH, ".//*[contains(@aria-label, 'erif')]")
-                        if verified_elements:
-                            verify_status = verified_elements[0].get_attribute('aria-label')
-                            print(f"✓ Found verification via aria-label: {verify_status}")
-                    except Exception as e:
-                        print(f"Method 2 failed: {e}")
-                
-                # Method 3: Look for specific verification SVG
-                if verify_status == "-":
-                    try:
-                        svg_elements = user_row.find_elements(By.TAG_NAME, "svg")
-                        for svg in svg_elements:
-                            aria_label = svg.get_attribute('aria-label')
-                            if aria_label and 'verif' in aria_label.lower():
-                                verify_status = aria_label
-                                print(f"✓ Found verification via SVG aria-label: {verify_status}")
-                                break
-                    except Exception as e:
-                        print(f"Method 3 failed: {e}")
-                        
-            except Exception as e:
-                print(f"Error checking verification for {username}: {e}")
-                verify_status = "-"
+            verify_status = self._get_verify_status(username, position)
 
             following_usernames.append({
                 "username": username,
@@ -337,7 +357,7 @@ class InstagramChecker():
     def _get_followers(self):
         print("Getting people that are following \"" + self.target_profile_username + "\"...")
 
-        # get number of followers
+        # Get number of followers
         try:
             followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
             followers_text = followers_link.text
@@ -346,7 +366,7 @@ class InstagramChecker():
             print(f"Error getting followers count: {e}")
             raise
 
-        # click on followers dialog
+        # Click on followers dialog
         self.driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div/div[1]/div[2]/div[1]/section/main/div/div/header/div/section[2]/div/div[3]/div[2]/a").click()
 
         actual_count = self._scroll_through_dialog(
@@ -379,14 +399,7 @@ class InstagramChecker():
             except:
                 display_name = "-"
 
-            try:
-                verify_status = self.driver.find_element(By.XPATH,
-                "/html/body/div[5]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-                +position+
-                "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title"
-                ).text
-            except:
-                verify_status = "-"
+            verify_status = self._get_verify_status(username, position)
 
             followers_usernames.append({
                 "username": username,
@@ -421,8 +434,6 @@ class InstagramChecker():
                     break
                 elif iu != ju and j == len(followers_usernames)-1:
                     result_list.append(following_usernames[i])
-
-        print(f"result_list: {result_list}")
 
         return result_list
 
@@ -466,20 +477,20 @@ class InstagramChecker():
         for user in result_list:
             print("Profile:", user["username"])
 
-            # go to profile
+            # Go to profile
             self.driver.get(self.url + "/" + user["username"])
             
-            # get number of followers
+            # Get number of followers
             print("Getting followers")
             followers_int = self._get_count(1)
             user["followers"] = followers_int
 
-            # get number of following
+            # Get number of following
             print("Getting following")
             following_int = self._get_count(2)
             user["following"] = following_int
             
-            # anticipate division by zero
+            # Anticipate division by zero
             if following_int == 0:
                 user["ratio"] = followers_int
             else:
@@ -488,10 +499,10 @@ class InstagramChecker():
             print(f"follower:following ratio for \"{user['username']}\": {user['ratio']}")
             print("------------------------------")
 
-        # sort by ratio
+        # Sort by ratio
         sorted_data = sorted(result_list, key=itemgetter("ratio"), reverse=True)
 
-        # create csv file
+        # Create csv file
         dir_name = "./results/csv/"
         create_dir_if_it_does_not_exist(dir_name)
 
@@ -503,7 +514,7 @@ class InstagramChecker():
 
         print(f"\nCSV results are located here: {csv_file_path}")
 
-        # create pickle for df
+        # Create pickle for df
         dir_name = "pickles/"
         create_dir_if_it_does_not_exist(dir_name)
         pickle_file_path = f"{dir_name}data_{current_time}.pkl"
@@ -556,28 +567,28 @@ def print_results_to_console(l, fmt_amts_str):
             item["verify_status"]))
     print()
 
-# for sorting by another column besides "ratio"
+# For sorting by another column besides "ratio"
 def use_pickle(sort_by_column):
     print(f"Creating {sort_by_column} sorted csv file...")
 
     dir_name = "pickles"
     create_dir_if_it_does_not_exist(dir_name)
 
-    # get latest pickle file
+    # Get latest pickle file
     files = os.listdir(dir_name)
     paths = [os.path.join(dir_name, basename) for basename in files]
     pickle_file_path = max(paths, key=os.path.getctime)
 
-    # get data from pickle file
+    # Get data from pickle file
     df = pd.read_pickle(pickle_file_path)
 
-    # sort df
+    # Sort df
     df = df.sort_values(
         by=sort_by_column,
         ascending=False
     )
 
-    # create csv file
+    # Create csv file
     dir_name = "./results/csv"
     create_dir_if_it_does_not_exist(dir_name)
 
@@ -588,7 +599,7 @@ def use_pickle(sort_by_column):
 
     print(f"CSV results are located here: {csv_file_path}\n")
 
-# PAUSE FOR INSPECTION - Browser will stay open to allow for inspection
+# Browser will stay open to allow for inspection
 def pause_for_inspection():
     print("\n" + "="*80)
     print("BROWSER IS NOW PAUSED FOR INSPECTION")

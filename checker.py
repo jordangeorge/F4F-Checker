@@ -35,7 +35,6 @@ class InstagramChecker():
             print("INSTAGRAM_PASSWORD is not set")
             exit()
 
-
         # Configure Chrome options to use Chrome for Testing
         chrome_options = Options()
         chrome_options.binary_location = "./chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
@@ -71,7 +70,9 @@ class InstagramChecker():
             return False
         
         # input username and password
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[class='_aa4b _add6 _ac4d _ap35']")))
+        # self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[class='_aa4b _add6 _ac4d _ap35']")))
+        self.wait.until(EC.presence_of_element_located((By.NAME, "username")))
+        self.wait.until(EC.presence_of_element_located((By.NAME, "password")))
 
         self.driver.find_element(By.NAME, "username").send_keys(self.target_profile_username)
         self.driver.find_element(By.NAME, "password").send_keys(os.getenv("INSTAGRAM_PASSWORD"))
@@ -220,20 +221,13 @@ class InstagramChecker():
             except Exception as e:
                 print(f"Scroll error: {e}")
             
-            time.sleep(2)  # Give it more time to load
+            time.sleep(1)  # Give it more time to load
             
             # Count items using multiple methods
             try:
                 # Count all links in the dialog that look like profile links
-                items = self.driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] a[href*='/']")
-                # Filter to only count unique profile links (not buttons, etc)
-                filtered_items = []
-                for item in items:
-                    href = item.get_attribute('href')
-                    if href and '/p/' not in href and '/reel/' not in href:
-                        # Skip if it's a real profile link
-                        filtered_items.append(item)
-                li_num = len(filtered_items)
+                items = self.driver.find_elements(By.CSS_SELECTOR, "div[class='x1qnrgzn x1cek8b2 xb10e19 x19rwo8q x1lliihq x193iq5w xh8yej3']")
+                li_num = len(items)
             except:
                 try:
                     # Fallback: just count all links
@@ -276,20 +270,16 @@ class InstagramChecker():
         # Wait for page to be fully loaded
         time.sleep(2)
 
-        # get number of following - try multiple approaches
+        # get number of following
         try:
-            # Try the old selector first
-            num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='html-span xdj266r x11i5rnm xat24cr x1mh8g0r xexx8yu x4uap5 x18d9i69 xkhd6sd x1hl2dhg x16tdsg8 x1vvkbs']")))[2].text)
-        except:
-            try:
-                # Try finding all links that contain '/following'
-                following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
-                following_text = following_link.text
-                # Extract number from text like "123 following"
-                num_of_following = int(re.search(r'[\d,]+', following_text.replace(',', '')).group())
-            except Exception as e:
-                print(f"Error getting following count: {e}")
-                raise
+            # Try finding all links that contain '/following'
+            following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
+            following_text = following_link.text
+            # Extract number from text like "123 following"
+            num_of_following = int(re.search(r'[\d,]+', following_text.replace(',', '')).group())
+        except Exception as e:
+            print(f"Error getting following count: {e}")
+            raise
 
         # click on following dialog
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
@@ -312,16 +302,7 @@ class InstagramChecker():
         for i in range(0, items_to_process):
             position = str(i+1)
 
-            print(f"{position=}")
-
             try:
-                # x=self.driver.find_element(By.XPATH,
-                #     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
-                #     +position+
-                #     "]/div/div/div/div[2]/div/div"
-                #     )
-                # print(f"{x=}")
-
                 username_and_display_name = self.driver.find_element(By.XPATH,
                     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
@@ -329,8 +310,6 @@ class InstagramChecker():
                     ).text.split("\n")
             except:
                 username_and_display_name = ["-", "-"]
-
-            print(f"{username_and_display_name=}")
 
             username = username_and_display_name[0]
             
@@ -379,20 +358,16 @@ class InstagramChecker():
     def get_followers(self):
         print("Getting people that are following \"" + self.target_profile_username + "\"...")
 
-        # get number of followers - try multiple approaches
+        # get number of followers
         try:
-            # Try the old selector first
-            num_of_followers = int(self.driver.find_elements(By.CSS_SELECTOR, "span[class='_ac2a']")[1].text)
-        except:
-            try:
-                # Try finding the followers link
-                followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
-                followers_text = followers_link.text
-                # Extract number from text like "123 followers"
-                num_of_followers = int(re.search(r'[\d,]+', followers_text.replace(',', '')).group())
-            except Exception as e:
-                print(f"Error getting followers count: {e}")
-                raise
+            # Try finding the followers link
+            followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
+            followers_text = followers_link.text
+            # Extract number from text like "123 followers"
+            num_of_followers = int(re.search(r'[\d,]+', followers_text.replace(',', '')).group())
+        except Exception as e:
+            print(f"Error getting followers count: {e}")
+            raise
 
         # click on followers dialog
         self.driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div/div[1]/div[2]/div[1]/section/main/div/div/header/div/section[2]/div/div[3]/div[2]/a").click()
@@ -419,8 +394,6 @@ class InstagramChecker():
                     ).text.split("\n")
             except:
                 username_and_display_name = ["-", "-"]
-
-            print(f"{username_and_display_name=}")
 
             username = username_and_display_name[0]
             
@@ -464,18 +437,13 @@ class InstagramChecker():
 
         for i in range(len(following_usernames)):
             for j in range(len(followers_usernames)):
+                iu = following_usernames[i]["username"] 
+                ju = followers_usernames[j]["username"]
                 
-                if following_usernames[i]["username"] == "-" and following_usernames[i]["display_name"] == "-":
-                    continue
-                if followers_usernames[j]["username"] == "-" and followers_usernames[j]["display_name"] == "-":
-                    continue
-
-                if following_usernames[i]["username"] == followers_usernames[j]["username"]:
+                if iu == ju:
                     break
-                elif following_usernames[i]["username"] != followers_usernames[j]["username"] and j == len(followers_usernames)-1:
+                elif iu != ju and j == len(followers_usernames)-1:
                     result_list.append(following_usernames[i])
-
-        print(f"result_list: {result_list}")
 
         return result_list
 
@@ -648,7 +616,6 @@ def use_pickle(sort_by_column):
 
     print(f"CSV results are located here: {csv_file_path}\n")
 
-
 # PAUSE FOR INSPECTION - Browser will stay open to allow for inspection
 def pause_for_inspection():
     print("\n" + "="*80)
@@ -698,7 +665,7 @@ if __name__ == "__main__":
         for i in fmt_amts: fmt_amts_str += "{:" + str(i) + "}"
 
         put_results_in_file(result_list, fmt_amts_str)
-        # print_results_to_console(result_list, fmt_amts_str)
+        print_results_to_console(result_list, fmt_amts_str)
 
         print("Done\n")
 

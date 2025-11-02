@@ -247,18 +247,18 @@ class InstagramChecker():
             position = str(i+1)
 
             try:
-                username_and_display_name = self.driver.find_element(By.XPATH,
+                user_info = self.driver.find_element(By.XPATH,
                     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
                     "]/div/div/div/div[2]/div/div"
                     ).text.split("\n")
             except:
-                username_and_display_name = ["-", "-"]
+                user_info = ["-", "-"]
 
-            username = username_and_display_name[0]
+            username = user_info[0]
             
             try:
-                display_name = username_and_display_name[1]
+                display_name = user_info[1]
             except:
                 display_name = "-"
 
@@ -369,18 +369,18 @@ class InstagramChecker():
             position = str(i+1)
 
             try:
-                username_and_display_name = self.driver.find_element(By.XPATH,
+                user_info_element = self.driver.find_element(By.XPATH,
                     "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
                     "]/div/div/div/div[2]/div/div"
                     ).text.split("\n")
             except:
-                username_and_display_name = ["-", "-"]
+                user_info_element = ["-", "-"]
 
-            username = username_and_display_name[0]
+            username = user_info_element[0]
             
             try:
-                display_name = username_and_display_name[1]
+                display_name = user_info_element[1]
             except:
                 display_name = "-"
 
@@ -511,7 +511,7 @@ class InstagramChecker():
         csv_file_path = dir_name + "results_" + current_time + ".csv"
         
         df = pd.DataFrame(sorted_data)
-        df.to_csv(csv_file_path, sep=",", index=False)
+        df.to_csv(csv_file_path, sep=",", index=False, encoding='utf-8')
 
         print(f"\nCSV results are located here: {csv_file_path}")
 
@@ -534,7 +534,7 @@ def put_results_in_file(result_list: list, fmt_amts_str: str) -> None:
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     text_file_path = dir_name + "/results_" + current_time + ".txt"
 
-    results_file = open(text_file_path, "a")
+    results_file = open(text_file_path, "a", encoding='utf-8')
 
     results_file.write(str(fmt_amts_str.format(
         "Username",

@@ -460,8 +460,9 @@ class InstagramChecker():
             print("Getting followers")
 
             # get number of followers
-            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
+            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[1].text
             
+            # fix: make code DRY by creating a function to convert the string to an integer
             followers_int = 0
             if "mil" in followers_string:
                 # todo: is , being registered as . at all for different countries?
@@ -478,8 +479,7 @@ class InstagramChecker():
                 followers_int = int(multiply)
             else:
                 convert_to_float = float(followers_string)
-                multiply = convert_to_float
-                followers_int = int(multiply)
+                followers_int = int(convert_to_float)
 
             # add to dict
             user["followers"] = followers_int
@@ -487,7 +487,7 @@ class InstagramChecker():
             print("Getting following")
 
             # get number of following
-            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text
+            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[2].text
             
             following_int = 0
             if "mil" in following_string:
@@ -505,13 +505,15 @@ class InstagramChecker():
                 following_int = int(multiply)
             else:
                 convert_to_float = float(following_string)
-                multiply = convert_to_float 
-                following_int = int(multiply)
+                following_int = int(convert_to_float)
 
             # add to dict
             user["following"] = following_int
-
-            user["ratio"] = round(followers_int / following_int, 1)
+            
+            if following_int == 0:
+                user["ratio"] = followers_int
+            else:
+                user["ratio"] = round(followers_int / following_int, 1)
 
             print(f"follower:following ratio for \"{user['username']}\": {user['ratio']}")
             print("------------------------------")
@@ -665,7 +667,7 @@ if __name__ == "__main__":
         for i in fmt_amts: fmt_amts_str += "{:" + str(i) + "}"
 
         put_results_in_file(result_list, fmt_amts_str)
-        print_results_to_console(result_list, fmt_amts_str)
+        # print_results_to_console(result_list, fmt_amts_str)
 
         print("Done\n")
 

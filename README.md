@@ -10,7 +10,7 @@ In other words, this shows you people you're following that aren't following you
 
 ##### Use Details
 - Turn off VPN
-- This currently does not work with 2FA. Therefore, it must be turned off in the Privacy and Security section of Instagram settings before using, which can be found [here](https://www.instagram.com/accounts/two_factor_authentication/).
+- This currently does not work with 2FA. Therefore, it must be turned off in the Privacy and Security section of Instagram settings before using, which can be found [here](https://accountscenter.instagram.com/password_and_security/two_factor/?theme=dark).
 - Install Google Chrome if it is not already installed
 - View Google Chrome version for ChromeDriver by selecting "Chrome" in the menu bar. Then select "About Google Chrome"
 - Download the ChromeDriver version corresponding to the version of Chrome and OS [here](https://chromedriver.chromium.org/downloads)

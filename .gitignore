@@ -3,16 +3,16 @@
 chromedriver
 .env
 notes/*
-f4f_venv
 *results*.txt
 *results*.csv
 recordings
 pickles
 status.log
+chrome-mac-arm64/
+venv/
 
 # might delete anything under this line
 error.txt
 
-checker2.py
 csvdata.csv
 unfollowlist.txt

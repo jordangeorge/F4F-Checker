@@ -8,9 +8,13 @@ from dotenv import load_dotenv
 import logging
 from operator import itemgetter
 import pandas as pd
+import re
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
@@ -24,7 +28,27 @@ load_dotenv()
 
 class InstagramChecker():
     def __init__(self):
-        self.driver = webdriver.Chrome("./chromedriver")
+        if os.getenv("INSTAGRAM_USERNAME") is None:
+            print("INSTAGRAM_USERNAME is not set")
+            exit()
+        if os.getenv("INSTAGRAM_PASSWORD") is None:
+            print("INSTAGRAM_PASSWORD is not set")
+            exit()
+
+        # Configure Chrome options to use Chrome for Testing
+        chrome_options = Options()
+        chrome_options.binary_location = "./chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+        
+        # Add arguments to help Chrome start properly
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        
+        # Create Chrome service with the chromedriver
+        service = Service(executable_path="./chromedriver")
+        
+        # Create the webdriver instance
+        self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.url = "https://www.instagram.com"
         self.wait = WebDriverWait(self.driver, 15)
         self.target_profile_username = os.getenv("INSTAGRAM_USERNAME")
@@ -44,19 +68,35 @@ class InstagramChecker():
             logging.error(f"Unable to open {self.url}. Error: {e}")
 
             return False
-
-        # input username and password
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[class='_aa4b _add6 _ac4d']")))
-        self.driver.find_element_by_name("username").send_keys(self.target_profile_username)
-        self.driver.find_element_by_name("password").send_keys(os.getenv("INSTAGRAM_PASSWORD"))
         
-        # click login button
-        self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[class='x9f619 xjbqb8w x78zum5 x168nmei x13lgxp2 x5pf9jr xo71vjh x1n2onr6 x1plvlek xryxfnj x1c4vz4f x2lah0s xdt5ytf xqjyukv x1qjc9v5 x1oa3qoh x1nhvcw1']"))).click()
+        # input username and password
+        # self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[class='_aa4b _add6 _ac4d _ap35']")))
+        self.wait.until(EC.presence_of_element_located((By.NAME, "username")))
+        self.wait.until(EC.presence_of_element_located((By.NAME, "password")))
+
+        self.driver.find_element(By.NAME, "username").send_keys(self.target_profile_username)
+        self.driver.find_element(By.NAME, "password").send_keys(os.getenv("INSTAGRAM_PASSWORD"))
+        
+        # click login button - use a more reliable selector
+        # Try to find the button by type and text content
+        try:
+            # First, try to find by button type
+            login_button = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']")))
+            login_button.click()
+        except:
+            try:
+                # If that fails, try by text content
+                login_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Log in') or contains(text(), 'Log In')]")))
+                login_button.click()
+            except:
+                # Last resort: use Enter key
+                print("Using Enter key to submit form...")
+                self.driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
         
         # looking for alerts (red text) on the login page that will not allow user to login
-        time.sleep(3)
+        time.sleep(2)  # Wait for potential alert to appear
         try:
-            alert = self.driver.find_element_by_css_selector("div[class='_ab2z']")
+            alert = self.driver.find_element(By.CSS_SELECTOR, "div[class='_ab2z']")
             print(f"Alert found: {alert.text}\nExiting program.\n")
             logging.error(f"Need to wait before executing again. Alert found: {alert.text}")
             return False
@@ -76,16 +116,6 @@ class InstagramChecker():
             print("2FA disabled")
             pass
 
-        # # go to profile
-        # self.wait = WebDriverWait(self.driver, 10)
-        # try:
-        #     self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[2]/div/div/div/div[1]/div/div/div/div[1]/div[1]/div[1]/div/div/div/div/div[2]/div[7]/div/div/a"))).click() 
-        # except:
-        #     # "Activar notificaciones" modal shows
-        #     # or
-        #     # "¿Guardar tu información de inicio de sesión?" modal shows
-        #     self.driver.get(self.url + "/" + self.target_profile_username)
-
         # go to profile
         self.driver.get(self.url + "/" + self.target_profile_username)
 
@@ -96,56 +126,205 @@ class InstagramChecker():
     def scroll_through_dialog(self, dialog_ul_div_xpath, num, class_name):
         print("Scrolling")
 
-        time.sleep(4)
-        dialog_ul_div = self.driver.find_element_by_xpath(dialog_ul_div_xpath)
+        time.sleep(3)
+        
+        # Try to find the scrollable dialog div with multiple approaches
+        dialog_ul_div = None
+        
+        # Method 1: Try original XPath
+        try:
+            dialog_ul_div = self.driver.find_element(By.XPATH, dialog_ul_div_xpath)
+            print("Found dialog using original XPath")
+        except:
+            pass
 
+        if not dialog_ul_div:
+            print("ERROR: Could not find scrollable dialog")
+            return 0
+
+        print(f"Found scrollable dialog. Starting to scroll for {num} items...")
+        
         li_num = 0
-        while li_num < num:
-            self.driver.execute_script("return arguments[0].scrollIntoView(0, document.documentElement.scrollHeight-10);", dialog_ul_div)
+        scroll_attempts = 0
+        max_scrolls = num // 5 + 30  # More scrolls for larger lists
+        last_count = 0
+        stable_count = 0
+        
+        # Initial count
+        try:
+            li_num = len(self.driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] a[href*='/']"))
+            print(f"Initial item count: {li_num}")
+        except:
+            pass
+        
+        while li_num < num and scroll_attempts < max_scrolls:
+            # Scroll using JavaScript
+            try:
+                # Method 1: Scroll the element itself
+                scroll_height = self.driver.execute_script("return arguments[0].scrollHeight", dialog_ul_div)
+                client_height = self.driver.execute_script("return arguments[0].clientHeight", dialog_ul_div)
+                scroll_top = self.driver.execute_script("return arguments[0].scrollTop", dialog_ul_div)
+                
+                # Scroll down by client height
+                self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollTop + arguments[0].clientHeight", dialog_ul_div)
+                
+                # Also try scrolling to bottom
+                self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", dialog_ul_div)
+            except Exception as e:
+                print(f"Scroll error: {e}")
             
-            css_selector = "div[class='"+class_name+"']"
-            target = self.driver.find_elements_by_css_selector(css_selector)
-            li_num = len(target)
+            time.sleep(1)  # Give it more time to load
+            
+            # Count divs
+            items = self.driver.find_elements(By.CSS_SELECTOR, "div[class='x1qnrgzn x1cek8b2 xb10e19 x19rwo8q x1lliihq x193iq5w xh8yej3']")
+            li_num = len(items)
+            
+            scroll_attempts += 1
+            
+            # Print progress every scroll for debugging
+            print(f"Scroll {scroll_attempts}: Found {li_num} items (target: {num})")
+            
+            # Check if we're making progress
+            if li_num > last_count:
+                print(f"  Progress! Found {li_num - last_count} new items")
+                stable_count = 0
+                last_count = li_num
+            else:
+                stable_count += 1
+                if stable_count >= 3:  # No progress for 3 scrolls
+                    print(f"No new items loaded after {stable_count} scrolls. Stopping.")
+                    break
+            
+            # If we've found enough items, break
+            if li_num >= num:
+                print(f"Found all {num} items!")
+                break
+            
+            # If we hit max scrolls, break
+            if scroll_attempts >= max_scrolls:
+                print(f"Reached max scrolls ({max_scrolls}), stopping with {li_num} items found")
+                break
 
-        print("Done scrolling")
+        print(f"Done scrolling. Found {li_num} items out of {num} target")
+        return li_num
 
     def get_following(self):
         print("Getting people \"" + self.target_profile_username + "\" is following...")
 
+        # Wait for page to be fully loaded
+        time.sleep(2)
+
         # get number of following
-        num_of_following = int(self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text)
+        try:
+            # Try finding all links that contain '/following'
+            following_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/following')]")))
+            following_text = following_link.text
+            # Extract number from text like "123 following"
+            num_of_following = int(re.search(r'[\d,]+', following_text.replace(',', '')).group())
+        except Exception as e:
+            print(f"Error getting following count: {e}")
+            raise
 
         # click on following dialog
         self.wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@href,'/following')]"))).click()
         
-        self.scroll_through_dialog("/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]", num_of_following, "x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xa49m3k xqeqjp1 x2hbi6w x13fuv20 xu3j5b3 x1q0q8m5 x26u7qi x972fbf xcfux6l x1qhh985 xm0m39n x9f619 x1ypdohk xdl72j9 x2lah0s xe8uvvx xdj266r x11i5rnm xat24cr x1mh8g0r x2lwn1j xeuugli xexx8yu x4uap5 x18d9i69 xkhd6sd x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x1q0g3np x87ps6o x1lku1pv x1a2a7pz xh8yej3 x193iq5w x1lliihq x1dm5mii x16mil14 xiojian x1yutycm")
+        # Wait for dialog to open
+        time.sleep(2)
+        
+        actual_count = self.scroll_through_dialog(
+            "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]",
+            num_of_following,
+            "x1dm5mii x16mil14 xiojian x1yutycm x1lliihq x193iq5w xh8yej3"
+        )
+        
+        # Use the actual count found instead of the expected count
+        items_to_process = min(actual_count, num_of_following)
+        print(f"Processing {items_to_process} items...")
 
         following_usernames = list()
 
-        for i in range(0, num_of_following):
+        for i in range(0, items_to_process):
             position = str(i+1)
 
-            username_and_verify_status = self.driver.find_element_by_xpath(
-                "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div["
-                +position+
-                "]/div/div/div/div[2]/div/div/span[1]/span/div/div/div/a/span/div"
-                ).text.split("\n")
+            try:
+                user_info = self.driver.find_element(By.XPATH,
+                    "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+                    +position+
+                    "]/div/div/div/div[2]/div/div"
+                    ).text.split("\n")
+            except:
+                user_info = ["-", "-"]
 
-            username = username_and_verify_status[0]
+            username = user_info[0]
             
             try:
-                verify_status = username_and_verify_status[1]
-            except:
-                verify_status = "-"
-
-            try:
-                display_name = self.driver.find_element_by_xpath(
-                    "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div/div/div["
-                    +position+
-                    "]/div/div/div/div[2]/div/div/span[2]/span"
-                    ).text
+                display_name = user_info[1]
             except:
                 display_name = "-"
+
+            print(f'{username=}')
+
+            # Try multiple methods to find verification status
+            verify_status = "-"
+            
+            try:
+                # First, get the user row element
+                user_row = self.driver.find_element(By.XPATH,
+                    f"/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div[{position}]"
+                )
+                
+                # Debug: Print the HTML structure for the first few users
+                if i < 3:
+                    print(f"\n=== DEBUG: HTML structure for user {username} (position {position}) ===")
+                    html_content = user_row.get_attribute('innerHTML')
+                    # Look for verification-related content
+                    if 'verif' in html_content.lower():
+                        print("Found 'verif' in HTML!")
+                        # Extract a snippet around it
+                        idx = html_content.lower().find('verif')
+                        print(html_content[max(0, idx-100):idx+100])
+                    else:
+                        print("No 'verif' found in HTML")
+                    print("=== END DEBUG ===\n")
+                
+                # Method 1: Look for SVG title with verification text
+                try:
+                    title_elements = user_row.find_elements(By.TAG_NAME, "title")
+                    for title_elem in title_elements:
+                        title_text = title_elem.get_attribute('textContent') or title_elem.text
+                        if title_text and ('verif' in title_text.lower()):
+                            verify_status = title_text
+                            print(f"✓ Found verification via title: {verify_status}")
+                            break
+                except Exception as e:
+                    print(f"Method 1 failed: {e}")
+                
+                # Method 2: Look for aria-label with verification
+                if verify_status == "-":
+                    try:
+                        verified_elements = user_row.find_elements(By.XPATH, ".//*[contains(@aria-label, 'erif')]")
+                        if verified_elements:
+                            verify_status = verified_elements[0].get_attribute('aria-label')
+                            print(f"✓ Found verification via aria-label: {verify_status}")
+                    except Exception as e:
+                        print(f"Method 2 failed: {e}")
+                
+                # Method 3: Look for specific verification SVG
+                if verify_status == "-":
+                    try:
+                        svg_elements = user_row.find_elements(By.TAG_NAME, "svg")
+                        for svg in svg_elements:
+                            aria_label = svg.get_attribute('aria-label')
+                            if aria_label and 'verif' in aria_label.lower():
+                                verify_status = aria_label
+                                print(f"✓ Found verification via SVG aria-label: {verify_status}")
+                                break
+                    except Exception as e:
+                        print(f"Method 3 failed: {e}")
+                        
+            except Exception as e:
+                print(f"Error checking verification for {username}: {e}")
+                verify_status = "-"
 
             following_usernames.append({
                 "username": username,
@@ -162,39 +341,57 @@ class InstagramChecker():
         print("Getting people that are following \"" + self.target_profile_username + "\"...")
 
         # get number of followers
-        num_of_followers = int(self.driver.find_elements_by_css_selector("span[class='_ac2a']")[1].text)
+        try:
+            # Try finding the followers link
+            followers_link = self.wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(@href,'/followers')]")))
+            followers_text = followers_link.text
+            # Extract number from text like "123 followers"
+            num_of_followers = int(re.search(r'[\d,]+', followers_text.replace(',', '')).group())
+        except Exception as e:
+            print(f"Error getting followers count: {e}")
+            raise
 
         # click on followers dialog
-        self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div[2]/div/div/div/div[1]/div[1]/div[2]/div[2]/section/main/div/header/section/ul/li[2]/a").click()
+        self.driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div/div[1]/div[2]/div[1]/section/main/div/div/header/div/section[2]/div/div[3]/div[2]/a").click()
 
-        self.scroll_through_dialog("/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div[1]", num_of_followers, "x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xa49m3k xqeqjp1 x2hbi6w x13fuv20 xu3j5b3 x1q0q8m5 x26u7qi x972fbf xcfux6l x1qhh985 xm0m39n x9f619 x1ypdohk xdl72j9 x2lah0s xe8uvvx xdj266r x11i5rnm xat24cr x1mh8g0r x2lwn1j xeuugli xexx8yu x4uap5 x18d9i69 xkhd6sd x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x1q0g3np x87ps6o x1lku1pv x1a2a7pz xh8yej3 x193iq5w x1lliihq x1dm5mii x16mil14 xiojian x1yutycm")
+        actual_count = self.scroll_through_dialog(
+            "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]",
+            num_of_followers,
+            "x1i10hfl x1qjc9v5 xjbqb8w xjqpnuy xa49m3k xqeqjp1 x2hbi6w x13fuv20 xu3j5b3 x1q0q8m5 x26u7qi x972fbf xcfux6l x1qhh985 xm0m39n x9f619 x1ypdohk xdl72j9 x2lah0s xe8uvvx xdj266r x11i5rnm xat24cr x1mh8g0r x2lwn1j xeuugli xexx8yu x4uap5 x18d9i69 xkhd6sd x1n2onr6 x16tdsg8 x1hl2dhg xggy1nq x1ja2u2z x1t137rt x1q0g3np x87ps6o x1lku1pv x1a2a7pz xh8yej3 x193iq5w x1lliihq x1dm5mii x16mil14 xiojian x1yutycm")
+
+        # Use the actual count found instead of the expected count
+        items_to_process = min(actual_count, num_of_followers)
+        print(f"Processing {items_to_process} items...")
 
         followers_usernames = list()
 
-        for i in range(0, num_of_followers):
+        for i in range(0, items_to_process):
             position = str(i+1)
 
-            username_and_verify_status = self.driver.find_element_by_xpath(
-                "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div["
-                +position+
-                "]/div/div/div/div[2]/div/div/span[1]/span/div/div/div/a/span/div"
-                ).text.split("\n")
-
-            username = username_and_verify_status[0]
-
             try:
-                verify_status = username_and_verify_status[1]
-            except:
-                verify_status = "-"
-
-            try:
-                display_name = self.driver.find_element_by_xpath(
-                    "/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[2]/div/div/div["
+                user_info_element = self.driver.find_element(By.XPATH,
+                    "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
                     +position+
-                    "]/div/div/div/div[2]/div/div/span[2]/span"
-                    ).text
+                    "]/div/div/div/div[2]/div/div"
+                    ).text.split("\n")
+            except:
+                user_info_element = ["-", "-"]
+
+            username = user_info_element[0]
+            
+            try:
+                display_name = user_info_element[1]
             except:
                 display_name = "-"
+
+            try:
+                verify_status = self.driver.find_element(By.XPATH,
+                "/html/body/div[5]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div["
+                +position+
+                "]/div/div/div/div[2]/div/div/div/div/span/div/a/div/div/div/svg/title"
+                ).text
+            except:
+                verify_status = "-"
 
             followers_usernames.append({
                 "username": username,
@@ -208,17 +405,26 @@ class InstagramChecker():
         return followers_usernames
 
     def get_comparisons(self):
+        # Wait for page to be fully loaded
+        time.sleep(2)
+
         following_usernames = self.get_following()
-        self.driver.find_element_by_xpath("/html/body/div[2]/div/div/div[3]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button").click() # close dialog window
+        self.driver.find_element(
+            By.XPATH,
+            "/html/body/div[4]/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[1]/div/div[3]/div/button"
+            ).click() # close dialog window
         followers_usernames = self.get_followers()
 
         result_list = list()
 
         for i in range(len(following_usernames)):
             for j in range(len(followers_usernames)):
-                if following_usernames[i]["username"] == followers_usernames[j]["username"]:
+                iu = following_usernames[i]["username"] 
+                ju = followers_usernames[j]["username"]
+                
+                if iu == ju:
                     break
-                elif following_usernames[i]["username"] != followers_usernames[j]["username"] and j == len(followers_usernames)-1:
+                elif iu != ju and j == len(followers_usernames)-1:
                     result_list.append(following_usernames[i])
 
         return result_list
@@ -236,11 +442,12 @@ class InstagramChecker():
             print("Getting followers")
 
             # get number of followers
-            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[1].text
+            followers_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[1].text
             
+            # fix: make code DRY by creating a function to convert the string to an integer
             followers_int = 0
             if "mil" in followers_string:
-                # is , being registered as . at all for different countries?
+                # todo: is , being registered as . at all for different countries?
                 just_numbers = followers_string.split(" ")[0]
                 replace_comma = just_numbers.replace(",", ".")
                 convert_to_float = float(replace_comma)
@@ -254,8 +461,7 @@ class InstagramChecker():
                 followers_int = int(multiply)
             else:
                 convert_to_float = float(followers_string)
-                multiply = convert_to_float
-                followers_int = int(multiply)
+                followers_int = int(convert_to_float)
 
             # add to dict
             user["followers"] = followers_int
@@ -263,11 +469,11 @@ class InstagramChecker():
             print("Getting following")
 
             # get number of following
-            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='_ac2a']")))[2].text
+            following_string = self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span[class='x5n08af x1s688f']")))[2].text
             
             following_int = 0
             if "mil" in following_string:
-                # is , being registered as . at all?
+                # todo: is , being registered as . at all?
                 just_numbers = following_string.split(" ")[0]
                 replace_comma = just_numbers.replace(",", ".")
                 convert_to_float = float(replace_comma)
@@ -281,13 +487,15 @@ class InstagramChecker():
                 following_int = int(multiply)
             else:
                 convert_to_float = float(following_string)
-                multiply = convert_to_float 
-                following_int = int(multiply)
+                following_int = int(convert_to_float)
 
             # add to dict
             user["following"] = following_int
-
-            user["ratio"] = round(followers_int / following_int, 1)
+            
+            if following_int == 0:
+                user["ratio"] = followers_int
+            else:
+                user["ratio"] = round(followers_int / following_int, 1)
 
             print(f"follower:following ratio for \"{user['username']}\": {user['ratio']}")
             print("------------------------------")
@@ -297,21 +505,19 @@ class InstagramChecker():
 
         # create csv file
         dir_name = "./results/csv/"
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+        create_dir_if_it_does_not_exist(dir_name)
 
         current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        csv_file_path = dir_name + "/results_" + current_time + ".csv"
+        csv_file_path = dir_name + "results_" + current_time + ".csv"
         
         df = pd.DataFrame(sorted_data)
-        df.to_csv(csv_file_path, sep=",", index=False)
+        df.to_csv(csv_file_path, sep=",", index=False, encoding='utf-8')
 
         print(f"\nCSV results are located here: {csv_file_path}")
 
         # create pickle for df
         dir_name = "pickles/"
-        if not os.path.isdir(dir_name):
-            os.mkdir(dir_name)
+        create_dir_if_it_does_not_exist(dir_name)
         pickle_file_path = f"{dir_name}data_{current_time}.pkl"
         df.to_pickle(pickle_file_path)
 
@@ -321,23 +527,30 @@ class InstagramChecker():
     def __exit__(self, exc_type, exc_value, traceback):
         self.close_driver()
 
-def put_results_in_file(result_list, fmt_amts_str):
+def put_results_in_file(result_list: list, fmt_amts_str: str) -> None:
     dir_name = "./results/text"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     text_file_path = dir_name + "/results_" + current_time + ".txt"
 
-    results_file = open(text_file_path, "a")
+    results_file = open(text_file_path, "a", encoding='utf-8')
 
-    results_file.write(str(fmt_amts_str.format("Username", "Profile Link", "Display Name", "Verify Status")))
+    results_file.write(str(fmt_amts_str.format(
+        "Username",
+        "Profile Link",
+        "Display Name",
+        "Verify Status")))
     results_file.write(str("\n"))
     results_file.write(str("-" * sum(fmt_amts)))
     results_file.write(str("\n"))
 
     for item in result_list:
-        results_file.write(str(fmt_amts_str.format(item["username"], item["profile_link"], item["display_name"], item["verify_status"])))
+        results_file.write(str(fmt_amts_str.format(
+            item["username"],
+            item["profile_link"],
+            item["display_name"],
+            item["verify_status"])))
         results_file.write(str("\n"))
 
     results_file.close()
@@ -348,7 +561,11 @@ def print_results_to_console(l, fmt_amts_str):
     print(fmt_amts_str.format("Username", "Profile Link", "Display Name", "Verify Status"))
     print("-" * sum(fmt_amts))
     for item in l:
-        print(fmt_amts_str.format(item["username"], item["profile_link"], item["display_name"], item["verify_status"]))
+        print(fmt_amts_str.format(
+            item["username"],
+            item["profile_link"],
+            item["display_name"],
+            item["verify_status"]))
     print()
 
 # for sorting by another column besides "ratio"
@@ -356,8 +573,7 @@ def use_pickle(sort_by_column):
     print(f"Creating {sort_by_column} sorted csv file...")
 
     dir_name = "pickles"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     # get latest pickle file
     files = os.listdir(dir_name)
@@ -375,8 +591,7 @@ def use_pickle(sort_by_column):
 
     # create csv file
     dir_name = "./results/csv"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     csv_file_path = dir_name + "/results_" + current_time + ".csv"
@@ -385,12 +600,23 @@ def use_pickle(sort_by_column):
 
     print(f"CSV results are located here: {csv_file_path}\n")
 
+# PAUSE FOR INSPECTION - Browser will stay open to allow for inspection
+def pause_for_inspection():
+    print("\n" + "="*80)
+    print("BROWSER IS NOW PAUSED FOR INSPECTION")
+    print("Press ENTER in the terminal when you're done inspecting...")
+    print("="*80)
+    input()
+
+def create_dir_if_it_does_not_exist(dir_name):
+    if not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
+
 if __name__ == "__main__":
     logging.info("Started")
 
     dir_name = "results"
-    if not os.path.isdir(dir_name):
-        os.mkdir(dir_name)
+    create_dir_if_it_does_not_exist(dir_name)
 
     print()
 

@@ -224,8 +224,8 @@ class InstagramChecker():
         print(f"Done scrolling. Found {li_num} items out of {num} target")
         return li_num
 
-    def _get_verify_status(self, username, position) -> str:
-        # Try multiple methods to find verification status
+    # Try multiple methods to find verification status
+    def _get_verify_status(self, position, username) -> str:
         verify_status = "-"
         
         try:
@@ -341,7 +341,7 @@ class InstagramChecker():
             except:
                 display_name = "-"
 
-            verify_status = self._get_verify_status(username, position)
+            verify_status = self._get_verify_status(position, username)
 
             following_usernames.append({
                 "username": username,
@@ -399,7 +399,7 @@ class InstagramChecker():
             except:
                 display_name = "-"
 
-            verify_status = self._get_verify_status(username, position)
+            verify_status = self._get_verify_status(position, username)
 
             followers_usernames.append({
                 "username": username,

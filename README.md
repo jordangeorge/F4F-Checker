@@ -186,6 +186,7 @@ Then run the script again.
 
 ## Notes
 
+- Remember to turn 2FA back on if wanted and remove env information after each session.
 - This tool uses web scraping via Selenium, which can break if Instagram changes their UI.
 - Results are saved locally and never shared.
 - Be mindful of Instagram's rate limits and terms of service.
